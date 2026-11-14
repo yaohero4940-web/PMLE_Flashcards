@@ -80,6 +80,7 @@ function defaultState() {
     streakLast: "",
     streakCount: 0,
     corrVer: 0, // 答案修正版本号：升级后重置相关题目的旧判题记录
+    updatedAt: 0, // 整体更新时间，用于跨设备合并时判断哪份更新
   };
 }
 function loadState() {
@@ -91,12 +92,14 @@ function loadState() {
   }
   return defaultState();
 }
-function persist() {
+function persist(opts) {
+  S.updatedAt = Date.now();
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(S));
   } catch (e) {
     toast("⚠️ 本地存储写入失败");
   }
+  if (!opts || !opts.noSync) schedulePush();
 }
 
 /* 答案修正迁移：修正过的题目，之前的判题记录是按旧答案产生的，作废重来 */
@@ -152,7 +155,7 @@ function masteredDue(lv) {
 }
 
 /* ---------- 视图切换 ---------- */
-const VIEWS = ["home", "quiz", "result", "bank", "stats"];
+const VIEWS = ["home", "quiz", "result", "bank", "stats", "sync"];
 let currentView = "home";
 function show(view) {
   currentView = view;
@@ -169,6 +172,10 @@ document.querySelectorAll(".nav-btn").forEach((b) => {
     if (b.dataset.view === "home") renderHome();
     if (b.dataset.view === "bank") renderBank();
     if (b.dataset.view === "stats") renderStats();
+    if (b.dataset.view === "sync") {
+      renderSyncView();
+      if (sync.token && sync.auto && !sync.busy) syncNow({ silent: true });
+    }
     show(b.dataset.view);
   });
 });
@@ -235,13 +242,7 @@ function renderHome() {
       : "今天没有待复习的题，直接开新题") +
     `（昨日答错未掌握：${yWrong} 道）`;
 
-  const fav = favNums().length;
-  const unseen = unseenNums().length;
-  const meta = window.PMLE_BANK_META || {};
-  const stamp = meta.build
-    ? ` · 题库构建 ${meta.build}${meta.fixed ? `（${meta.fixed} 题答案已修正）` : ""}`
-    : "";
-  $("#home-meta").textContent = `题库共 ${BANK.length} 题 · 未做过 ${unseen} 题 · 收藏 ${fav} 题 · 含 27 道新题（376-402）${stamp}`;
+  renderHomeMeta();
 
   renderHeatmap();
   renderHomeStats();
@@ -843,6 +844,7 @@ $("#btn-fav-run").addEventListener("click", startFavSession);
   if (!cur) return;
   const c = card(cur.num);
   c.fav = c.fav ? 0 : 1;
+  c.lastAt = Date.now(); // 让收藏/取消收藏参与跨设备合并的"谁更新"判断
   persist();
   $("#btn-fav-toggle").textContent = c.fav ? "★" : "☆";
   $("#btn-fav-toggle").classList.toggle("faved", !!c.fav);
@@ -1012,6 +1014,7 @@ function openBankDetail(num) {
   overlay.querySelector(".bd-close").addEventListener("click", () => overlay.remove());
   overlay.querySelector("#bd-fav").addEventListener("click", () => {
     c.fav = c.fav ? 0 : 1;
+    c.lastAt = Date.now();
     persist();
     renderBank();
     overlay.remove();
@@ -1064,6 +1067,306 @@ $("#import-file").addEventListener("change", (e) => {
   };
   r.readAsText(f);
   e.target.value = "";
+});
+
+/* ---------- 跨设备同步（GitHub 私密 Gist） ---------- */
+const SYNC_TOKEN_KEY = "pmle_flashcards_gh_token_v1";
+const SYNC_GIST_KEY = "pmle_flashcards_gist_id_v1";
+const SYNC_AUTO_KEY = "pmle_flashcards_sync_auto_v1";
+const GIST_FILE = "pmle-progress.json";
+const GIST_DESC = "PMLE-FLASHCARDS-SYNC (private progress)";
+const GH_API = "https://api.github.com";
+
+const sync = {
+  token: "",
+  gistId: "",
+  auto: true,
+  busy: false,
+  lastSync: 0,
+  pulledAt: 0, // 本会话成功拉取云端状态的时间；为 0 时禁止上传，避免旧数据覆盖云端
+  lastError: "",
+};
+try {
+  sync.token = localStorage.getItem(SYNC_TOKEN_KEY) || "";
+  sync.gistId = localStorage.getItem(SYNC_GIST_KEY) || "";
+  const a = localStorage.getItem(SYNC_AUTO_KEY);
+  sync.auto = a === null ? true : a === "1";
+} catch (e) {}
+
+function ghFetch(path, opts) {
+  const o = opts || {};
+  const headers = Object.assign(
+    {
+      Accept: "application/vnd.github+json",
+      Authorization: "Bearer " + sync.token,
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+    o.body ? { "Content-Type": "application/json" } : {},
+    o.headers || {}
+  );
+  return fetch(GH_API + path, {
+    method: o.method || "GET",
+    headers,
+    body: o.body,
+    cache: "no-store",
+  }).then((res) => {
+    if (res.ok) return res.json();
+    const map = {
+      401: "令牌无效或已过期（401）",
+      403: "权限不足或被限流（403），请确认令牌勾选了 gist",
+      404: "云端存档不存在（404）",
+    };
+    const err = new Error(map[res.status] || res.status + " " + res.statusText);
+    err.status = res.status;
+    throw err;
+  });
+}
+
+async function locateGist() {
+  if (sync.gistId) {
+    try {
+      return await ghFetch("/gists/" + sync.gistId);
+    } catch (e) {
+      if (e.status !== 404) throw e;
+      sync.gistId = "";
+      localStorage.removeItem(SYNC_GIST_KEY);
+    }
+  }
+  const list = await ghFetch("/gists?per_page=100");
+  const found = (list || []).find(
+    (g) => g.description === GIST_DESC || (g.files && g.files[GIST_FILE])
+  );
+  if (found) {
+    sync.gistId = found.id;
+    localStorage.setItem(SYNC_GIST_KEY, found.id);
+    return found;
+  }
+  return null;
+}
+
+async function readGistState(g) {
+  const f = g && g.files && g.files[GIST_FILE];
+  if (!f) return null;
+  let content = f.content;
+  if (f.truncated && f.raw_url) {
+    const r = await fetch(f.raw_url, {
+      headers: { Authorization: "Bearer " + sync.token, Accept: "application/vnd.github.raw" },
+      cache: "no-store",
+    });
+    if (r.ok) content = await r.text();
+  }
+  try {
+    const d = JSON.parse(content);
+    return d && d.state ? d.state : d;
+  } catch (e) {
+    return null;
+  }
+}
+
+function gistPayload() {
+  return JSON.stringify({ v: 2, savedAt: Date.now(), state: S });
+}
+
+async function pushState() {
+  const g = await locateGist();
+  if (!g) {
+    const created = await ghFetch("/gists", {
+      method: "POST",
+      body: JSON.stringify({
+        description: GIST_DESC,
+        public: false,
+        files: { [GIST_FILE]: { content: gistPayload() } },
+      }),
+    });
+    sync.gistId = created.id;
+    localStorage.setItem(SYNC_GIST_KEY, created.id);
+    return;
+  }
+  await ghFetch("/gists/" + sync.gistId, {
+    method: "PATCH",
+    body: JSON.stringify({ files: { [GIST_FILE]: { content: gistPayload() } } }),
+  });
+}
+
+let pushTimer = null;
+function schedulePush() {
+  if (!sync.token || !sync.auto) return;
+  // 必须先成功拉取过一次云端状态，才允许上传：
+  // 否则一台设备用旧进度覆盖云端，会把另一台设备的进度冲掉。
+  if (!sync.pulledAt) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    pushState()
+      .then(() => {
+        sync.lastSync = Date.now();
+        sync.lastError = "";
+        refreshSyncIndicators();
+      })
+      .catch((e) => {
+        sync.lastError = e.message || String(e);
+        refreshSyncIndicators();
+      });
+  }, 2500);
+}
+
+async function syncNow(opts) {
+  const o = opts || {};
+  if (!sync.token || sync.busy) return false;
+  sync.busy = true;
+  renderSyncView();
+  try {
+    const g = await locateGist();
+    const remote = g ? await readGistState(g) : null;
+    sync.pulledAt = Date.now();
+    const merger = window.PMLE_MERGE && window.PMLE_MERGE.mergeStates;
+    const merged = remote && merger ? merger(S, remote) : S;
+    S = Object.assign(defaultState(), merged);
+    S.updatedAt = Date.now();
+    persist({ noSync: true });
+    await pushState();
+    sync.lastSync = Date.now();
+    sync.lastError = "";
+    if (o.silent !== true) toast("已与云端同步 ✓");
+    if (currentView !== "quiz") {
+      if (currentView === "bank") renderBank();
+      else if (currentView === "stats") renderStats();
+      else if (currentView === "home") renderHome();
+    }
+    return true;
+  } catch (e) {
+    sync.lastError = e.message || String(e);
+    if (o.silent !== true) toast("同步失败：" + sync.lastError);
+    return false;
+  } finally {
+    sync.busy = false;
+    renderSyncView();
+    refreshSyncIndicators();
+  }
+}
+
+function fmtSyncTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function syncSummary() {
+  if (!sync.token) return "☁️ 未开启云同步";
+  if (sync.busy) return "☁️ 同步中…";
+  if (sync.lastError) return "☁️ 同步异常";
+  if (!sync.lastSync) return "☁️ 已连接，待同步";
+  return `☁️ 已同步 ${fmtSyncTime(sync.lastSync)}`;
+}
+
+function refreshSyncIndicators() {
+  const dot = $("#sync-dot");
+  if (dot) dot.hidden = !sync.token;
+  const meta = $("#home-meta");
+  if (meta && currentView === "home") renderHomeMeta();
+}
+
+function renderHomeMeta() {
+  const fav = favNums().length;
+  const unseen = unseenNums().length;
+  const bmeta = window.PMLE_BANK_META || {};
+  const stamp = bmeta.build
+    ? ` · 题库构建 ${bmeta.build}${bmeta.fixed ? `（${bmeta.fixed} 题答案已修正）` : ""}`
+    : "";
+  $("#home-meta").textContent = `题库共 ${BANK.length} 题 · 未做过 ${unseen} 题 · 收藏 ${fav} 题 · 含 27 道新题（376-402）${stamp} · ${syncSummary()}`;
+}
+
+function renderSyncView() {
+  const badge = $("#sync-badge");
+  if (!badge) return;
+  if (!sync.token) {
+    badge.className = "sync-badge off";
+    badge.textContent = "未连接";
+  } else if (sync.lastError) {
+    badge.className = "sync-badge err";
+    badge.textContent = "同步异常";
+  } else {
+    badge.className = "sync-badge on";
+    badge.textContent = sync.busy ? "同步中" : "已连接";
+  }
+
+  const st = $("#sync-state");
+  if (!st) return;
+  if (!sync.token) {
+    st.className = "sync-state";
+    st.innerHTML =
+      "尚未连接。填入令牌后点击「连接并同步」——本机已有的进度会与云端合并，不会丢。";
+  } else if (sync.lastError) {
+    st.className = "sync-state err";
+    st.innerHTML = `同步出错：${esc(sync.lastError)}<br>本地进度仍然安全，修复后点「立即同步」重试。`;
+  } else {
+    st.className = "sync-state ok";
+    const counts = `本机进度：做过 ${Object.keys(S.cards).length} 题 · 收藏 ${favNums().length} 题`;
+    st.innerHTML = `已连接${sync.gistId ? ` · 存档 <code>${esc(sync.gistId.slice(0, 8))}</code>` : ""}${
+      sync.lastSync ? ` · 上次同步 ${fmtSyncTime(sync.lastSync)}` : ""
+    }<br>${counts}`;
+  }
+
+  const input = $("#sync-token");
+  if (input) {
+    input.value = "";
+    input.placeholder = sync.token
+      ? "已保存令牌（如需更换请粘贴新令牌）"
+      : "ghp_…（classic 令牌，需勾选 gist）";
+  }
+  const auto = $("#sync-auto");
+  if (auto) auto.checked = sync.auto;
+  const btnNow = $("#btn-sync-now");
+  if (btnNow) btnNow.disabled = !sync.token || sync.busy;
+  const btnDisc = $("#btn-sync-disconnect");
+  if (btnDisc) btnDisc.disabled = !sync.token;
+}
+
+/* 同步页交互 */
+$("#btn-sync-connect").addEventListener("click", async () => {
+  const val = ($("#sync-token").value || "").trim();
+  if (val) {
+    sync.token = val;
+    sync.gistId = "";
+    localStorage.setItem(SYNC_TOKEN_KEY, val);
+    localStorage.removeItem(SYNC_GIST_KEY);
+  }
+  if (!sync.token) {
+    toast("请先粘贴 GitHub 令牌");
+    return;
+  }
+  sync.lastError = "";
+  const ok = await syncNow();
+  if (ok) renderSyncView();
+});
+$("#btn-sync-now").addEventListener("click", () => syncNow());
+$("#btn-sync-disconnect").addEventListener("click", () => {
+  sync.token = "";
+  sync.gistId = "";
+  sync.lastSync = 0;
+  sync.lastError = "";
+  localStorage.removeItem(SYNC_TOKEN_KEY);
+  localStorage.removeItem(SYNC_GIST_KEY);
+  refreshSyncIndicators();
+  renderSyncView();
+  toast("已断开本机同步（云端存档保留）");
+});
+$("#sync-auto").addEventListener("change", (e) => {
+  sync.auto = e.target.checked;
+  localStorage.setItem(SYNC_AUTO_KEY, sync.auto ? "1" : "0");
+  if (sync.auto && sync.token) syncNow({ silent: true });
+});
+$("#sync-token").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("#btn-sync-connect").click();
+});
+
+/* 切回页面时自动拉取（答题中不打扰） */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  if (!sync.token || !sync.auto || sync.busy) return;
+  if (currentView === "quiz") return;
+  if (Date.now() - sync.lastSync < 60000) return;
+  syncNow({ silent: true });
 });
 
 /* ---------- 统计页 ---------- */
@@ -1151,4 +1454,13 @@ rolloverCheck();
 migrateCorrections();
 ensureDay();
 renderHome();
+renderSyncView();
+refreshSyncIndicators();
+
+/* 启动时若已配置同步：先拉云端再合并，静默进行 */
+if (sync.token && sync.auto) {
+  setTimeout(() => {
+    if (currentView !== "quiz") syncNow({ silent: true });
+  }, 600);
+}
 show("home");

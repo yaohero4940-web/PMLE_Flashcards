@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PMLE 闪卡 · 402 题背诵刷题</title>
-<link rel="stylesheet" href="css/style.css?v=20261114b">
+<link rel="stylesheet" href="css/style.css?v=20261114c">
 </head>
 <body>
 <header class="topbar">
@@ -18,6 +18,7 @@
     <button data-view="home" class="nav-btn active">首页</button>
     <button data-view="bank" class="nav-btn">题库</button>
     <button data-view="stats" class="nav-btn">统计</button>
+    <button data-view="sync" class="nav-btn">同步<span id="sync-dot" class="sync-dot" hidden></span></button>
   </nav>
 </header>
 
@@ -106,11 +107,55 @@
     <div id="stats-body"></div>
   </section>
 
+  <!-- ============ 同步页 ============ -->
+  <section id="view-sync" class="view" hidden>
+    <div class="panel sync-panel">
+      <h3>跨设备同步 <span id="sync-badge" class="sync-badge off">未连接</span></h3>
+      <p class="sync-desc">
+        用你的 GitHub 账号做一份私密云端存档。手机、电脑、不同浏览器粘贴同一个令牌后，
+        进度（掌握状态、错题、收藏、每日记录、断点）自动合并，换设备接着刷。
+      </p>
+
+      <div id="sync-state" class="sync-state">尚未连接。填入令牌后点击「连接并同步」。</div>
+
+      <label class="sync-label" for="sync-token">GitHub 令牌（只保存在本机浏览器）</label>
+      <div class="sync-input-row">
+        <input id="sync-token" type="password" placeholder="ghp_…（classic 令牌，需勾选 gist）" autocomplete="off" spellcheck="false">
+        <button id="btn-sync-connect" class="btn btn-primary">连接并同步</button>
+      </div>
+
+      <div class="sync-actions">
+        <button id="btn-sync-now" class="btn btn-outline">立即同步</button>
+        <button id="btn-sync-disconnect" class="btn btn-ghost">断开本机</button>
+      </div>
+
+      <label class="sync-check">
+        <input type="checkbox" id="sync-auto" checked>
+        自动同步（作答后自动上传，切回页面时自动拉取最新进度）
+      </label>
+
+      <details class="sync-help">
+        <summary>怎么生成令牌？（约 30 秒，只需一次）</summary>
+        <ol>
+          <li>打开 <code>github.com/settings/tokens</code> → <b>Generate new token (classic)</b></li>
+          <li>Note 随便填（如 <code>pmle-sync</code>），Expiration 建议 90 天</li>
+          <li>权限只勾选 <b>gist</b> 一项，其它全部不勾</li>
+          <li>点 Generate，复制 <code>ghp_</code> 开头的字符串，粘贴到上面输入框</li>
+        </ol>
+        <p class="sync-warn">
+          令牌仅存于本机 localStorage，只用于读写你自己的私密 Gist；本页面不引入任何第三方统计脚本。
+          若担心泄露，可设 90 天过期，到期重新生成并重新连接即可，云端进度不会丢。
+        </p>
+      </details>
+    </div>
+  </section>
+
 </main>
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="data/questions.js?v=20261114b"></script>
-<script src="js/app.js?v=20261114b"></script>
+<script src="data/questions.js?v=20261114c"></script>
+<script src="js/sync-merge.js?v=20261114c"></script>
+<script src="js/app.js?v=20261114c"></script>
 </body>
 </html>
