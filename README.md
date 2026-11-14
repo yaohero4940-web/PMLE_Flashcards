@@ -13,6 +13,19 @@
 | Q1 – Q375 | Google_PMLE_375题_中英对照精讲_Susan核对修正版.html（含中文翻译 + 全套精讲 + 配图） | Susan 核对修正版（6 道与题库原始答案不同的题以核对版为准：Q150=D、Q299=D、Q311=B、Q324=D、Q327=C、Q339=D） |
 | Q376 – Q402（27 道新题） | Professional Machine Learning Engineer 402题 答案修正版_无水印.pdf | 402 PDF 修正版，中文翻译与精讲按原框架补全 |
 
+**人工复核修正（2026-11）**：以下 6 题经官方文档 + 多源题库交叉印证，答案已更正并重写解析，页面显示绿色「答案已修正」徽标：
+
+| 题号 | 原答案 | 修正为 | 依据 |
+|---|---|---|---|
+| Q31 | A | **B** | OOM 的标准解法是减小 batch size；换 SGD→Adam 只会增加优化器状态显存 |
+| Q32 | A | **D** | 重编译 TF Serving 开启 AVX 指令优化 + GKE 指定 minimum CPU platform |
+| Q96 | B | **D** | 不牺牲性能地提速 = 加算力，用分布式训练多副本 |
+| Q171 | D | **A** | TPU VM 可 SSH 直接调试；单机 4 卡应用 MirroredStrategy 而非 MultiWorker |
+| Q213 | A | **D** | 题干七步 = TFX 标准组件清单，托管执行放 Vertex AI Pipelines |
+| Q318 | D | **A** | 官方限制：已启用 Model Monitoring 的端点不能再开请求-响应日志，故 D 不可行 |
+
+修正表在 `../pipeline/answer_corrections.py`，由 `build_bank.py` 应用；Q150 与 Q313 复核后维持原答案（D / C）。
+
 ## 核心功能
 
 - **每日 20 题**：每天开场先复习"到期 / 昨日答错未掌握"的题，再开 20 道新题；刷完可"再来 20 题"

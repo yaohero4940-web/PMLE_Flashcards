@@ -79,6 +79,7 @@ function defaultState() {
     dailyBackup: null, // 每日任务被收藏夹会话临时顶替时的备份
     streakLast: "",
     streakCount: 0,
+    corrVer: 0, // 答案修正版本号：升级后重置相关题目的旧判题记录
   };
 }
 function loadState() {
@@ -96,6 +97,26 @@ function persist() {
   } catch (e) {
     toast("⚠️ 本地存储写入失败");
   }
+}
+
+/* 答案修正迁移：修正过的题目，之前的判题记录是按旧答案产生的，作废重来 */
+const CORR_VER = 2;
+function migrateCorrections() {
+  if (S.corrVer === CORR_VER) return;
+  const fixedNums = BANK.filter((q) => q.fixed).map((q) => q.num);
+  let touched = 0;
+  fixedNums.forEach((n) => {
+    const c = S.cards[n];
+    if (!c) return;
+    c.lv = 0;
+    c.due = 0; // 立即到期 → 下次开场进入复习
+    c.wrongTotal = 0;
+    c.wrongByDay = {};
+    touched++;
+  });
+  S.corrVer = CORR_VER;
+  persist();
+  if (touched) toast(`已重置 ${touched} 道答案修正题的旧记录`);
 }
 function card(num) {
   if (!S.cards[num])
@@ -464,6 +485,7 @@ function renderCard() {
   const area = $("#quiz-area");
   const badges = [];
   if (q.isNew) badges.push('<span class="badge new">402 新题</span>');
+  if (q.fixed) badges.push('<span class="badge fixed">答案已修正</span>');
   if (isMulti) badges.push('<span class="badge multi">多选</span>');
   if (cur.retry) badges.push('<span class="badge retry">重弹</span>');
   if (c.lv >= 3) badges.push('<span class="badge">已掌握·远期</span>');
@@ -949,6 +971,7 @@ function openBankDetail(num) {
         <span class="qnum">QUESTION ${q.num}</span>
         <span class="bi-status ${st.cls}">${st.txt}</span>
         ${q.isNew ? '<span class="bi-status new">402 新题</span>' : ""}
+        ${q.fixed ? '<span class="bi-status fixed">答案已修正</span>' : ""}
         ${q.multi ? '<span class="bi-status" style="background:#efe7ff;color:#5b3f9e">多选</span>' : ""}
       </div>
       <div class="back-grid">
@@ -1121,6 +1144,7 @@ $("#fs-minus").addEventListener("click", () => fsChange(-1));
 $("#fs-plus").addEventListener("click", () => fsChange(1));
 applyFs();
 rolloverCheck();
+migrateCorrections();
 ensureDay();
 renderHome();
 show("home");

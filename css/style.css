@@ -300,6 +300,7 @@ main {
 .badge.new { background: var(--gold-l); color: #5b3a00; }
 .badge.multi { background: #efe7ff; color: #5b3f9e; }
 .badge.retry { background: var(--red-bg); color: var(--red-wrong); }
+.badge.fixed { background: var(--green-bg); color: #14532d; }
 
 /* 阅读内容字号：calc(base * --fs)，字号调节不影响布局骨架 */
 .qstem { font-size: calc(15.5px * var(--fs)); line-height: 1.65; }
@@ -504,6 +505,7 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
 .bi-status.lv2 { background: #e2f2e8; color: var(--green); }
 .bi-status.lv3 { background: #d7ecdf; color: #14532d; }
 .bi-status.weak { background: var(--red-bg); color: var(--red-wrong); }
+.bi-status.fixed { background: var(--green-bg); color: #14532d; }
 .bi-fav { color: var(--gold); font-size: 20px; line-height: 1; text-shadow: 0 1px 3px rgba(232, 176, 75, 0.5); }
 
 /* 展开的题目详情 */
