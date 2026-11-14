@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PMLE 闪卡 · 402 题背诵刷题</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">PMLE 闪卡 <span class="sub">402 题 · 中英对照精讲</span></div>
+  <nav class="nav">
+    <div class="fs-ctl" title="调节阅读字号（不影响布局）">
+      <button id="fs-minus" class="fs-btn" aria-label="减小字号">A−</button>
+      <span id="fs-label" class="fs-label">100%</span>
+      <button id="fs-plus" class="fs-btn" aria-label="增大字号">A+</button>
+    </div>
+    <button data-view="home" class="nav-btn active">首页</button>
+    <button data-view="bank" class="nav-btn">题库</button>
+    <button data-view="stats" class="nav-btn">统计</button>
+  </nav>
+</header>
+
+<main id="app">
+
+  <!-- ============ 首页 ============ -->
+  <section id="view-home" class="view">
+    <div class="hero">
+      <div class="hero-card">
+        <div class="date-line" id="home-date"></div>
+        <div class="progress-big" id="home-progress"></div>
+        <div class="review-hint" id="home-review"></div>
+        <div class="home-actions">
+          <button id="btn-main-action" class="btn btn-primary btn-big">开始今日 20 题</button>
+          <button id="btn-more20" class="btn btn-gold" hidden>再来 20 题</button>
+          <button id="btn-fav-run" class="btn btn-outline">刷收藏夹</button>
+        </div>
+        <div class="home-meta" id="home-meta"></div>
+      </div>
+    </div>
+
+    <div class="home-grid">
+      <div class="panel">
+        <h3>打卡日历</h3>
+        <div id="heatmap" class="heatmap"></div>
+        <div class="streak-line" id="streak-line"></div>
+      </div>
+      <div class="panel">
+        <h3>总览</h3>
+        <div id="home-stats" class="stat-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 答题页 ============ -->
+  <section id="view-quiz" class="view" hidden>
+    <div class="quiz-top">
+      <button id="quiz-exit" class="btn btn-ghost btn-small">← 退出</button>
+      <div class="session-info">
+        <span id="quiz-mode-label"></span>
+        <span id="quiz-count"></span>
+      </div>
+      <button id="btn-fav-toggle" class="fav-star" title="收藏本题">☆</button>
+    </div>
+    <div class="progress-track"><div id="quiz-progress" class="progress-bar"></div></div>
+
+    <div id="quiz-area"></div>
+  </section>
+
+  <!-- ============ 结算页 ============ -->
+  <section id="view-result" class="view" hidden>
+    <div class="result-card">
+      <h2 id="result-title">今日战报</h2>
+      <div id="result-body" class="result-body"></div>
+      <div class="home-actions">
+        <button id="btn-result-more20" class="btn btn-gold" hidden>再来 20 题</button>
+        <button id="btn-result-home" class="btn btn-primary">回到首页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 题库页 ============ -->
+  <section id="view-bank" class="view" hidden>
+    <div class="bank-tools">
+      <input id="bank-search" type="search" placeholder="搜索题干 / 选项 / 标签…">
+      <div class="bank-filters" id="bank-filters">
+        <button data-filter="all" class="chip active">全部</button>
+        <button data-filter="unseen" class="chip">未做过</button>
+        <button data-filter="weak" class="chip">未掌握</button>
+        <button data-filter="due" class="chip">待复习</button>
+        <button data-filter="fav" class="chip">收藏</button>
+        <button data-filter="new" class="chip">402 新题</button>
+        <button data-filter="img" class="chip">含图</button>
+      </div>
+      <div class="bank-io">
+        <button id="btn-export" class="btn btn-outline btn-small">导出进度</button>
+        <button id="btn-import" class="btn btn-outline btn-small">导入进度</button>
+        <input id="import-file" type="file" accept="application/json" hidden>
+      </div>
+    </div>
+    <div id="bank-list" class="bank-list"></div>
+  </section>
+
+  <!-- ============ 统计页 ============ -->
+  <section id="view-stats" class="view" hidden>
+    <div id="stats-body"></div>
+  </section>
+
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="data/questions.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
