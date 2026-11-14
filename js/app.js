@@ -237,7 +237,11 @@ function renderHome() {
 
   const fav = favNums().length;
   const unseen = unseenNums().length;
-  $("#home-meta").textContent = `题库共 ${BANK.length} 题 · 未做过 ${unseen} 题 · 收藏 ${fav} 题 · 含 27 道新题（376-402）`;
+  const meta = window.PMLE_BANK_META || {};
+  const stamp = meta.build
+    ? ` · 题库构建 ${meta.build}${meta.fixed ? `（${meta.fixed} 题答案已修正）` : ""}`
+    : "";
+  $("#home-meta").textContent = `题库共 ${BANK.length} 题 · 未做过 ${unseen} 题 · 收藏 ${fav} 题 · 含 27 道新题（376-402）${stamp}`;
 
   renderHeatmap();
   renderHomeStats();
