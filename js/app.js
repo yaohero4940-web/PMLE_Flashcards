@@ -634,32 +634,38 @@ function renderBack(correct) {
     <div class="qnum-line">
       <span class="qnum">QUESTION ${q.num} · 答案面</span>
     </div>
-    <div class="qstem">${q.stem}</div>
-    ${verdict}
-    <div class="backsec">
-      <h4>答案标注（绿 = 正确答案，红 = 你选错的）</h4>
-      ${marked}
-    </div>
-    ${
-      q.zh && q.zh.stem
-        ? `<div class="backsec">
-      <h4>中文翻译</h4>
-      <div class="bbody zho">
-        <p style="margin-bottom:6px"><b>题干</b></p>
-        ${q.zh.stem}
-        <p style="margin:8px 0 4px"><b>选项</b></p>
-        ${zhOpts}
+    <div class="back-grid">
+      <div class="back-col">
+        <div class="qstem">${q.stem}</div>
+        ${verdict}
+        <div class="backsec">
+          <h4>答案标注（绿 = 正确答案，红 = 你选错的）</h4>
+          ${marked}
+        </div>
       </div>
-    </div>`
-        : ""
-    }
-    <div class="backsec">
-      <h4>精讲</h4>
-      <div class="ex-content">
-        ${q.core ? `<div class="core-chip">${q.core}</div>` : ""}
-        ${q.ex}
-        ${pdfExpl}
-        ${q.ref ? `<p style="font-size:12px;color:var(--ink-2)">参考：${esc(q.ref)}</p>` : ""}
+      <div class="back-col">
+        ${
+          q.zh && q.zh.stem
+            ? `<div class="backsec">
+          <h4>中文翻译</h4>
+          <div class="bbody zho">
+            <p style="margin-bottom:6px"><b>题干</b></p>
+            ${q.zh.stem}
+            <p style="margin:8px 0 4px"><b>选项</b></p>
+            ${zhOpts}
+          </div>
+        </div>`
+            : ""
+        }
+        <div class="backsec">
+          <h4>精讲</h4>
+          <div class="ex-content">
+            ${q.core ? `<div class="core-chip">${q.core}</div>` : ""}
+            ${q.ex}
+            ${pdfExpl}
+            ${q.ref ? `<p style="font-size:12px;color:var(--ink-2)">参考：${esc(q.ref)}</p>` : ""}
+          </div>
+        </div>
       </div>
     </div>
     ${note}
@@ -945,22 +951,28 @@ function openBankDetail(num) {
         ${q.isNew ? '<span class="bi-status new">402 新题</span>' : ""}
         ${q.multi ? '<span class="bi-status" style="background:#efe7ff;color:#5b3f9e">多选</span>' : ""}
       </div>
-      <div class="qstem">${q.stem}</div>
-      <div class="backsec"><h4>答案</h4>${marked}</div>
-      ${
-        q.zh && q.zh.stem
-          ? `<div class="backsec"><h4>中文翻译</h4><div class="bbody zho">${q.zh.stem}<p style="margin:8px 0 4px"><b>选项</b></p>${zhOpts}</div></div>`
-          : ""
-      }
-      <div class="backsec">
-        <h4>精讲</h4>
-        <div class="ex-content">${q.core ? `<div class="core-chip">${q.core}</div>` : ""}${q.ex}
-        ${
-          q.explEn
-            ? `<details class="pdf-expl"><summary>📄 PDF 原文解析</summary><div class="bbody">${esc(q.explEn)}</div></details>`
-            : ""
-        }
-        ${q.ref ? `<p style="font-size:12px;color:var(--ink-2)">参考：${esc(q.ref)}</p>` : ""}</div>
+      <div class="back-grid">
+        <div class="back-col">
+          <div class="qstem">${q.stem}</div>
+          <div class="backsec"><h4>答案</h4>${marked}</div>
+        </div>
+        <div class="back-col">
+          ${
+            q.zh && q.zh.stem
+              ? `<div class="backsec"><h4>中文翻译</h4><div class="bbody zho">${q.zh.stem}<p style="margin:8px 0 4px"><b>选项</b></p>${zhOpts}</div></div>`
+              : ""
+          }
+          <div class="backsec">
+            <h4>精讲</h4>
+            <div class="ex-content">${q.core ? `<div class="core-chip">${q.core}</div>` : ""}${q.ex}
+            ${
+              q.explEn
+                ? `<details class="pdf-expl"><summary>📄 PDF 原文解析</summary><div class="bbody">${esc(q.explEn)}</div></details>`
+                : ""
+            }
+            ${q.ref ? `<p style="font-size:12px;color:var(--ink-2)">参考：${esc(q.ref)}</p>` : ""}</div>
+          </div>
+        </div>
       </div>
       <div class="quiz-actions">
         <button class="btn ${c.fav ? "btn-gold" : "btn-outline"}" id="bd-fav"><span class="bigstar">${c.fav ? "★" : "☆"}</span> ${c.fav ? "已收藏" : "收藏"}</button>

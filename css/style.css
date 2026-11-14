@@ -117,11 +117,11 @@ button { font-family: inherit; }
   user-select: none;
 }
 
-/* ---------- 主区域：充分利用可视面积 ---------- */
+/* ---------- 主区域：占满可视面积 ---------- */
 main {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 18px clamp(10px, 2vw, 28px) 60px;
+  max-width: none;
+  margin: 0;
+  padding: 18px clamp(10px, 1.5vw, 26px) 40px;
 }
 .view { animation: fadein 0.25s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
@@ -271,6 +271,7 @@ main {
   transform-style: preserve-3d;
   transition: transform 0.4s cubic-bezier(0.4, 0.1, 0.2, 1);
   min-height: 320px;
+  min-height: calc(100vh - 260px); /* 竖向占满视口剩余空间 */
 }
 .qcard.flipped { transform: rotateY(180deg); }
 .qface {
@@ -377,6 +378,9 @@ main {
   border-left: 4px solid var(--gold);
   padding-left: 8px;
 }
+/* 答案面双栏骨架：移动端单列，桌面端左（题干+答案标注）右（翻译+精讲） */
+.back-grid { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.back-grid > .back-col { min-width: 0; }
 .backsec .bbody { font-size: calc(14.5px * var(--fs)); line-height: 1.7; }
 .backsec .bbody p { margin: 0 0 8px; }
 .zho { color: #444; }
@@ -589,22 +593,26 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
   .fav-star { font-size: 34px; min-width: 44px; min-height: 44px; }
 }
 
-/* ---------- 大屏：充分利用可视面积 ---------- */
+/* ---------- 大屏：全屏铺开 + 纵向占满 ---------- */
 @media (min-width: 1100px) {
-  main { max-width: min(1560px, calc(100vw - 48px)); }
   .home-grid { grid-template-columns: 3fr 2fr; gap: 16px; }
   /* 题库列表多栏铺满 */
   .bank-list { grid-template-columns: repeat(auto-fill, minmax(430px, 1fr)); }
-  .bd-card { max-width: 1320px; padding: 26px 30px; }
+  /* 题库详情弹窗全宽 */
+  .bd-card { max-width: none; width: 100%; padding: 26px 30px; }
   .stats-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
   .qface { padding: 26px 30px; }
   .qstem { font-size: calc(16px * var(--fs)); }
   .opts { gap: 12px; }
-  .hero-card { padding: 34px 30px; }
-}
-
-@media (min-width: 1600px) {
-  main { max-width: 1720px; }
+  /* 答案面双栏：左（题干+答案标注）右（中文翻译+精讲） */
+  .back-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 26px; align-items: start; }
+  .back-grid .back-col > :first-child { margin-top: 0; }
+  /* 纵向占满视口，消除底部留白 */
+  .qcard { min-height: calc(100vh - 200px); }
+  .hero-card { padding: 34px 30px; min-height: 320px; display: flex; flex-direction: column; justify-content: center; }
+  .panel { min-height: 300px; }
+  .result-card { min-height: calc(100vh - 150px); display: flex; flex-direction: column; justify-content: center; }
+  .hm-cell { width: 16px; height: 16px; }
 }
 
 /* 打印 */
