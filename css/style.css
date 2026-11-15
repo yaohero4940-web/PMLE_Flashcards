@@ -78,14 +78,14 @@ button { font-family: inherit; }
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 30px 26px;
   background: linear-gradient(135deg, #000052 0%, var(--pri-d) 38%, var(--pri) 72%, var(--pri-l) 100%);
   color: #fff;
   box-shadow: 0 2px 16px rgba(0, 0, 110, 0.35);
 }
 .brand {
   font-weight: 700;
-  font-size: 17px;
+  font-size: 27px;
   letter-spacing: 0.5px;
   background: linear-gradient(90deg, #ffffff, #bcd0ff);
   -webkit-background-clip: text;
@@ -93,7 +93,7 @@ button { font-family: inherit; }
   -webkit-text-fill-color: transparent;
   white-space: nowrap;
 }
-.brand .sub { font-weight: 400; font-size: 12px; opacity: 0.85; margin-left: 8px; }
+.brand .sub { font-weight: 400; font-size: 15px; opacity: 0.85; margin-left: 12px; }
 .brand { display: flex; align-items: center; }
 /* Google 徽标（公有领域 PD-textlogo；商标归 Google LLC）：透明 SVG 直接叠在深蓝顶栏上，顶栏正中独立居中 */
 .g-logo {
@@ -101,24 +101,27 @@ button { font-family: inherit; }
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  height: 40px;
+  height: 84px;
   width: auto;
   pointer-events: none;
 }
-/* 中等宽度：正中会与标题/导航打架，改为跟在标题左侧 */
-@media (max-width: 1100px) {
-  .g-logo { position: static; left: auto; top: auto; transform: none; height: 32px; margin-right: 10px; }
+/* 中等宽度：正中会与标题/导航打架，先缩小，再退回跟在标题左侧 */
+@media (max-width: 1400px) {
+  .g-logo { height: 56px; }
 }
-.nav { display: flex; gap: 6px; align-items: center; }
+@media (max-width: 1240px) {
+  .g-logo { position: static; left: auto; top: auto; transform: none; height: 52px; margin-right: 14px; }
+}
+.nav { display: flex; gap: 8px; align-items: center; }
 .nav-btn {
   border: 1px solid rgba(255, 255, 255, 0.45);
   background: transparent;
   color: #fff;
-  min-height: 44px;
-  min-width: 44px;
-  padding: 6px 14px;
+  min-height: 66px;
+  min-width: 62px;
+  padding: 10px 16px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 18px;
   cursor: pointer;
 }
 .nav-btn.active {
@@ -133,20 +136,20 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-right: 4px;
+  margin-right: 6px;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 999px;
-  padding: 2px 4px;
+  padding: 3px 6px;
 }
 .fs-btn {
   background: transparent;
   border: none;
   color: #fff;
-  min-width: 34px;
-  min-height: 34px;
+  min-width: 42px;
+  min-height: 42px;
   border-radius: 999px;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   cursor: pointer;
   line-height: 1;
@@ -156,8 +159,8 @@ button { font-family: inherit; }
 .fs-btn:active { transform: scale(0.92); }
 .fs-label {
   color: #fff;
-  font-size: 12px;
-  min-width: 44px;
+  font-size: 14px;
+  min-width: 52px;
   text-align: center;
   opacity: 0.95;
   user-select: none;
@@ -167,7 +170,7 @@ button { font-family: inherit; }
 main {
   max-width: none;
   margin: 0;
-  padding: 18px clamp(10px, 1.5vw, 26px) 40px;
+  padding: 16px clamp(10px, 1.5vw, 26px) 26px;
 }
 .view { animation: fadein 0.25s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
@@ -241,16 +244,29 @@ main {
 .mb-item:hover { border-color: var(--pri); }
 
 /* ---------- 首页 ---------- */
-.hero { margin-bottom: 18px; }
+/* 让现有内容尽量占满整屏：三块（主卡 / 日历 / 概览）纵向拉伸 */
+.view[hidden] { display: none !important; }
+#view-home {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-height: calc(100vh - 172px);
+}
+#view-home .hero { margin-bottom: 0; display: flex; flex: 3 1 auto; }
+#view-home .home-grid { flex: 2 1 auto; }
 .hero-card {
   background: linear-gradient(135deg, #ffffff 0%, #eef3ff 55%, #e4ecff 100%);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 26px 22px;
+  padding: 40px 32px;
   text-align: center;
   position: relative;
   overflow: hidden;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .hero-card::before {
   content: "";
@@ -263,44 +279,46 @@ main {
   border-radius: 50%;
   pointer-events: none;
 }
-.date-line { color: var(--ink-2); font-size: 14px; }
-.progress-big { font-size: 30px; font-weight: 800; margin: 10px 0 4px; color: var(--pri-d); }
-.progress-big small { font-size: 15px; font-weight: 500; color: var(--ink-2); }
-.review-hint { font-size: 14px; color: var(--ink-2); margin-bottom: 16px; }
+.date-line { color: var(--ink-2); font-size: 20px; }
+.progress-big { font-size: 48px; font-weight: 800; margin: 14px 0 8px; color: var(--pri-d); line-height: 1.25; }
+.progress-big small { font-size: 24px; font-weight: 500; color: var(--ink-2); }
+.review-hint { font-size: 20px; color: var(--ink-2); margin-bottom: 24px; line-height: 1.6; }
 .review-hint b { color: var(--pri); }
-.home-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-.home-meta { margin-top: 14px; font-size: 13px; color: var(--ink-2); }
+.home-actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+.home-actions .btn { font-size: 19px; padding: 14px 26px; border-radius: 14px; }
+#btn-main-action { font-size: 23px; padding: 18px 40px; }
+.home-meta { margin-top: 22px; font-size: 17px; color: var(--ink-2); line-height: 1.7; }
 
-.home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; }
 .panel {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 16px;
+  padding: 22px;
 }
 .panel h3 {
-  margin: 2px 0 12px;
-  font-size: 15px;
-  border-left: 4px solid var(--pri);
-  padding-left: 8px;
+  margin: 2px 0 16px;
+  font-size: 24px;
+  border-left: 5px solid var(--pri);
+  padding-left: 10px;
   color: var(--pri-d);
 }
 
 /* 打卡热力图（蓝色系） */
-.heatmap { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 3px; overflow-x: auto; padding-bottom: 4px; }
-.hm-cell { width: 13px; height: 13px; border-radius: 3px; background: #e4eaf6; }
+.heatmap { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+.hm-cell { width: 17px; height: 17px; border-radius: 4px; background: #e4eaf6; }
 .hm-l1 { background: #b7c7f0; }
 .hm-l2 { background: #7d9bea; }
 .hm-l3 { background: #3f5ed8; }
 .hm-l4 { background: var(--pri); }
 .hm-today { outline: 2px solid var(--gold); }
-.streak-line { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
-.streak-line b { color: var(--pri); font-size: 15px; }
+.streak-line { margin-top: 14px; font-size: 19px; color: var(--ink-2); }
+.streak-line b { color: var(--pri); font-size: 24px; }
 
-.stat-list { display: grid; gap: 8px; font-size: 14px; }
-.stat-row { display: flex; justify-content: space-between; padding: 6px 2px; border-bottom: 1px dashed var(--line); }
-.stat-row b { color: var(--pri-d); }
+.stat-list { display: grid; gap: 4px; font-size: 19px; }
+.stat-row { display: flex; justify-content: space-between; padding: 11px 2px; border-bottom: 1px dashed var(--line); }
+.stat-row b { color: var(--pri-d); font-size: 21px; }
 
 /* ---------- 答题页 ---------- */
 .quiz-top {
@@ -644,16 +662,32 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
 @media (max-width: 640px) {
   .home-grid { grid-template-columns: 1fr; }
   .brand .sub { display: none; }
-  .brand { font-size: 15px; }
-  .nav-btn { padding: 6px 10px; font-size: 13px; }
-  .fs-ctl { padding: 1px 2px; }
-  .fs-btn { min-width: 30px; min-height: 30px; font-size: 13px; }
+  .brand { font-size: 20px; }
+  .nav-btn { padding: 9px 13px; font-size: 15px; min-height: 48px; }
+  .fs-ctl { padding: 1px 3px; }
+  .fs-btn { min-width: 38px; min-height: 38px; font-size: 16px; }
   .fs-label { display: none; }
   main { padding: 12px 10px 80px; }
+  #view-home { min-height: 0; gap: 16px; }
+  .hero-card { padding: 26px 16px; }
+  .date-line { font-size: 16px; }
+  .progress-big { font-size: 34px; }
+  .progress-big small { font-size: 18px; }
+  .review-hint { font-size: 16px; margin-bottom: 18px; }
+  .home-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .home-actions .btn { font-size: 16px; padding: 12px 18px; }
+  #btn-main-action { font-size: 19px; padding: 15px 26px; }
+  .home-meta { font-size: 15px; margin-top: 16px; }
+  .panel { padding: 16px; }
+  .panel h3 { font-size: 20px; }
+  .stat-list { font-size: 17px; }
+  .stat-row { padding: 9px 2px; }
+  .stat-row b { font-size: 19px; }
+  .streak-line { font-size: 16px; }
+  .streak-line b { font-size: 20px; }
   .qface { padding: 16px 12px; }
   .qcard { min-height: 360px; }
   .big-nums { gap: 16px; }
-  .progress-big { font-size: 24px; }
   .fav-star { font-size: 30px; min-width: 38px; min-height: 38px; margin: 0; }
   .mb-star { font-size: 26px; min-width: 36px; min-height: 36px; }
   .session-info { gap: 6px; font-size: 12px; }
@@ -661,7 +695,7 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
 
 /* ---------- 大屏：全屏铺开 + 纵向占满 ---------- */
 @media (min-width: 1100px) {
-  .home-grid { grid-template-columns: 3fr 2fr; gap: 16px; }
+  .home-grid { grid-template-columns: 3fr 2fr; gap: 22px; }
   /* 题库列表多栏铺满 */
   .bank-list { grid-template-columns: repeat(auto-fill, minmax(430px, 1fr)); }
   /* 题库详情弹窗全宽 */
@@ -675,10 +709,12 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
   .back-grid .back-col > :first-child { margin-top: 0; }
   /* 纵向占满视口，消除底部留白 */
   .qcard { min-height: calc(100vh - 200px); }
-  .hero-card { padding: 34px 30px; min-height: 320px; display: flex; flex-direction: column; justify-content: center; }
-  .panel { min-height: 300px; }
+  .hero-card { padding: 48px 40px; min-height: 340px; }
+  .panel { min-height: 260px; }
+  /* 概览面板双列，避免把页面顶出屏幕 */
+  .stat-list { grid-template-columns: 1fr 1fr; column-gap: 28px; }
   .result-card { min-height: calc(100vh - 150px); display: flex; flex-direction: column; justify-content: center; }
-  .hm-cell { width: 16px; height: 16px; }
+  .hm-cell { width: 20px; height: 20px; }
 }
 
 /* 打印 */
@@ -748,12 +784,12 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
 .sync-warn { background: #fff8e6; border-left: 3px solid var(--gold); padding: 8px 12px; border-radius: 8px; line-height: 1.7; margin: 10px 0 0; }
 @media (max-width: 640px) {
   /* 顶栏在窄屏换行，避免 4 个导航按钮挤出屏幕 */
-  .topbar { flex-wrap: wrap; row-gap: 6px; padding: 8px 10px; }
+  .topbar { flex-wrap: wrap; row-gap: 8px; padding: 12px 12px; }
   /* 徽标独占一行、水平居中 */
-  .g-logo { flex: 0 0 100%; width: 100%; height: 26px; object-fit: contain; margin: 0 0 2px; }
+  .g-logo { flex: 0 0 100%; width: 100%; height: 40px; object-fit: contain; margin: 0 0 4px; }
   .brand { flex: 1 1 100%; justify-content: center; }
   .nav { flex: 1 1 100%; justify-content: space-between; gap: 4px; flex-wrap: nowrap; }
-  .nav-btn { padding: 6px 8px; font-size: 12.5px; min-width: 0; flex: 0 1 auto; }
+  .nav-btn { padding: 8px 10px; font-size: 14px; min-width: 0; flex: 0 1 auto; }
   .sync-panel { max-width: none; width: 100%; box-sizing: border-box; }
   .sync-input-row { flex-direction: column; }
   .sync-input-row input { flex: 1 1 auto; width: 100%; }

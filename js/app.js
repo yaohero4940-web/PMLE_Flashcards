@@ -317,8 +317,8 @@ function renderHomeStats() {
   $("#home-stats").innerHTML = `
     <div class="stat-row"><span>Questions attempted</span><b>${touched}</b></div>
     <div class="stat-row"><span>Overall accuracy</span><b>${acc}%</b></div>
-    <div class="stat-row"><span>Mastered (7/21-day intervals)</span><b>${lv34}</b></div>
-    <div class="stat-row"><span>Reviewing (1/3-day intervals)</span><b>${lv12}</b></div>
+    <div class="stat-row"><span>Mastered · 7/21d</span><b>${lv34}</b></div>
+    <div class="stat-row"><span>Reviewing · 1/3d</span><b>${lv12}</b></div>
     <div class="stat-row"><span>Not mastered</span><b>${lv0weak}</b></div>`;
 }
 
