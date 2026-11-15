@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PMLE Flashcards · 402 Questions</title>
-<link rel="stylesheet" href="css/style.css?v=20261114f">
+<link rel="stylesheet" href="css/style.css?v=20261114g">
 </head>
 <body>
 <header class="topbar">
@@ -35,7 +35,8 @@
         <div class="review-hint" id="home-review"></div>
         <div class="home-actions">
           <button id="btn-main-action" class="btn btn-primary btn-big">Start today's 20</button>
-          <button id="btn-more20" class="btn btn-gold" hidden>20 more questions</button>
+          <button id="btn-more20" class="btn btn-gold">+20 new questions</button>
+          <button id="btn-mb-run" class="btn btn-outline">Review mistake book</button>
           <button id="btn-fav-run" class="btn btn-outline">Review bookmarks</button>
         </div>
         <div class="home-meta" id="home-meta"></div>
@@ -63,7 +64,10 @@
         <span id="quiz-mode-label"></span>
         <span id="quiz-count"></span>
       </div>
-      <button id="btn-fav-toggle" class="fav-star" title="Bookmark this question">☆</button>
+      <div class="star-group">
+        <button id="btn-mb-toggle" class="fav-star mb-star" title="Add to mistake book" aria-label="Add to mistake book">⚑</button>
+        <button id="btn-fav-toggle" class="fav-star" title="Bookmark this question" aria-label="Bookmark this question">☆</button>
+      </div>
     </div>
     <div class="progress-track"><div id="quiz-progress" class="progress-bar"></div></div>
 
@@ -90,6 +94,7 @@
         <button data-filter="all" class="chip active">All</button>
         <button data-filter="unseen" class="chip">Unseen</button>
         <button data-filter="weak" class="chip">Weak</button>
+        <button data-filter="mb" class="chip">Mistake book</button>
         <button data-filter="due" class="chip">Due</button>
         <button data-filter="fav" class="chip">Bookmarked</button>
         <button data-filter="new" class="chip">New (402)</button>
@@ -158,8 +163,8 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="data/questions.js?v=20261114f"></script>
-<script src="js/sync-merge.js?v=20261114f"></script>
-<script src="js/app.js?v=20261114f"></script>
+<script src="data/questions.js?v=20261114g"></script>
+<script src="js/sync-merge.js?v=20261114g"></script>
+<script src="js/app.js?v=20261114g"></script>
 </body>
 </html>

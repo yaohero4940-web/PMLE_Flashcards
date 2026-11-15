@@ -224,6 +224,22 @@ main {
 .fav-star.faved { color: var(--gold); text-shadow: 0 2px 10px rgba(232, 176, 75, 0.65); }
 .bigstar { font-size: 28px; line-height: 1; vertical-align: -5px; color: var(--gold); margin-right: 2px; }
 
+/* ---------- 错题本（⚑ 手动标记） ---------- */
+.star-group { display: flex; align-items: center; gap: 2px; }
+.mb-star { font-size: 32px; min-width: 46px; min-height: 46px; color: #9aa6c4; }
+.mb-star.mbook { color: var(--red-wrong); text-shadow: 0 2px 10px rgba(192, 57, 43, 0.45); }
+.mb-star:hover { transform: scale(1.15); }
+.btn-mb-on { background: #fff4f1; color: var(--red-wrong); border: 1.5px solid var(--red-wrong); }
+.bi-mbtoggle {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 22px; line-height: 1; padding: 3px 7px; margin: 0 4px;
+  color: #9aa6c4; border-radius: 8px;
+  transition: transform 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+.bi-mbtoggle:hover { background: #fdeeeb; transform: scale(1.1); }
+.bi-mbtoggle.on { color: var(--red-wrong); }
+.mb-item:hover { border-color: var(--pri); }
+
 /* ---------- 首页 ---------- */
 .hero { margin-bottom: 18px; }
 .hero-card {
@@ -638,7 +654,9 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
   .qcard { min-height: 360px; }
   .big-nums { gap: 16px; }
   .progress-big { font-size: 24px; }
-  .fav-star { font-size: 34px; min-width: 44px; min-height: 44px; }
+  .fav-star { font-size: 30px; min-width: 38px; min-height: 38px; margin: 0; }
+  .mb-star { font-size: 26px; min-width: 36px; min-height: 36px; }
+  .session-info { gap: 6px; font-size: 12px; }
 }
 
 /* ---------- 大屏：全屏铺开 + 纵向占满 ---------- */

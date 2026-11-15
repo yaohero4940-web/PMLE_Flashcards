@@ -73,7 +73,7 @@ let S = loadState();
 
 function defaultState() {
   return {
-    cards: {}, // num -> {lv, due, wrongTotal, wrongByDay:{}, fav, lastAt}
+    cards: {}, // num -> {lv, due, wrongTotal, wrongByDay:{}, fav, mb, lastAt}
     days: {}, // day -> {planned, done, correct, wrong, act}
     session: null,
     dailyBackup: null, // 每日任务被收藏夹会话临时顶替时的备份
@@ -115,6 +115,7 @@ function migrateCorrections() {
     c.due = 0; // 立即到期 → 下次开场进入复习
     c.wrongTotal = 0;
     c.wrongByDay = {};
+    c.seen = 1; // 仍是“做过”的题，不要被当成新题重新计数
     touched++;
   });
   S.corrVer = CORR_VER;
@@ -129,6 +130,7 @@ function card(num) {
       wrongTotal: 0,
       wrongByDay: {},
       fav: 0,
+      mb: 0, // 错题本标记：手动加入，需重点攻克
       lastAt: 0,
     };
   return S.cards[num];
@@ -189,10 +191,27 @@ function reviewDueNums() {
   }).map((q) => q.num);
 }
 function unseenNums() {
-  return BANK.filter((q) => !S.cards[q.num]).map((q) => q.num);
+  return BANK.filter((q) => !isAttempted(q.num)).map((q) => q.num);
+}
+/* 「做过」的判定：不能只看 cards 里有没有键——只收藏 / 只加错题本也会建档，
+ * 那样会把没做过的题误算成已做过，从新题池里消失。 */
+function isAttempted(num) {
+  const c = S.cards[num];
+  if (!c) return false;
+  if (c.seen) return true;
+  if (c.lv > 0 || c.wrongTotal > 0 || c.due > 0) return true;
+  return !!(c.wrongByDay && Object.keys(c.wrongByDay).length);
+}
+function attemptedCount() {
+  return Object.keys(S.cards).filter((n) => isAttempted(Number(n))).length;
 }
 function favNums() {
   return BANK.filter((q) => S.cards[q.num] && S.cards[q.num].fav).map(
+    (q) => q.num
+  );
+}
+function mbNums() {
+  return BANK.filter((q) => S.cards[q.num] && S.cards[q.num].mb).map(
     (q) => q.num
   );
 }
@@ -213,25 +232,45 @@ function renderHome() {
     day: "numeric",
   });
 
-  let progressHtml, mainLabel;
+  const MODE_LABEL = {
+    daily: "Daily set",
+    fav: "Bookmark review",
+    mb: "Mistake book review",
+  };
+  let progressHtml, mainLabel, mainDisabled = false;
   if (sess) {
     const remaining = sessionRemaining(sess);
-    progressHtml = `Daily session in progress <small>(${remaining} cards left)</small>`;
+    progressHtml = `${MODE_LABEL[sess.mode] || "Daily set"} in progress <small>(${remaining} card${
+      remaining === 1 ? "" : "s"
+    } left)</small>`;
     mainLabel = "Resume session";
-    $("#btn-more20").hidden = true;
   } else if (day.done >= day.planned) {
     progressHtml = `Today: <span>${day.done}</span> / ${day.planned} new questions done <small>🎉</small>`;
-    mainLabel = unseenNums().length ? "20 more questions" : "All caught up today";
-    $("#btn-more20").hidden = false;
+    mainLabel = "All caught up today";
+    mainDisabled = true;
   } else {
     progressHtml = `Today: <span>${day.done}</span> / ${day.planned} new questions done`;
     mainLabel = "Start today's 20";
-    $("#btn-more20").hidden = true;
   }
   $("#home-progress").innerHTML = progressHtml;
   const btn = $("#btn-main-action");
   btn.textContent = mainLabel;
-  btn.disabled = mainLabel === "All caught up today";
+  btn.disabled = mainDisabled;
+
+  /* +20 常驻按钮：不受今日额度是否完成限制，永远加“没做过”的题 */
+  const unseenLeft = unseenNums().length;
+  const moreBtn = $("#btn-more20");
+  moreBtn.hidden = false;
+  moreBtn.disabled = unseenLeft === 0;
+  moreBtn.textContent = unseenLeft
+    ? `+20 new questions · ${unseenLeft} unseen`
+    : "All 402 seen 🎉";
+
+  /* 错题本入口 */
+  const mbCount = mbNums().length;
+  $("#btn-mb-run").textContent = mbCount
+    ? `Review mistake book (${mbCount})`
+    : "Review mistake book";
 
   const due = reviewDueNums();
   const yk = todayKey(new Date(Date.now() - DAY));
@@ -264,7 +303,7 @@ function renderHomeStats() {
     wrong = 0,
     touched = 0;
   Object.keys(S.cards).forEach((n) => {
-    touched++;
+    if (isAttempted(Number(n))) touched++;
     const c = S.cards[n];
     if (c.lv >= 3) lv34++;
     else if (c.lv >= 1) lv12++;
@@ -346,18 +385,39 @@ function startDailySession() {
 function addTwentyMore() {
   const t = todayKey();
   const day = ensureDay();
-  const fresh = unseenNums().slice(0, 20);
+  // 若当前是收藏夹 / 错题本会话，先把它收起并还原之前暂停的每日会话
+  // （收藏与错题本清单本身是持久保存的，随时可以重新开始，不会丢）
+  let sess = activeSession();
+  if (sess && sess.mode !== "daily") {
+    S.session = S.dailyBackup || null;
+    S.dailyBackup = null;
+    sess = activeSession();
+  }
+
+  // 已经在这轮队列/重弹/攻坚区里的题不能算“新题”，否则会重复出现
+  const queued = new Set();
+  if (sess) {
+    sess.queue.forEach((n) => queued.add(n));
+    (sess.requeue || []).forEach((r) => queued.add(r.num));
+    (sess.cram || []).forEach((n) => queued.add(n));
+    (sess.resolved || []).forEach((n) => queued.add(n));
+  }
+  const fresh = unseenNums()
+    .filter((n) => !queued.has(n))
+    .slice(0, 20);
   if (!fresh.length) return toast("No more new questions to add 🎉");
-  const sess = activeSession();
+
   if (sess && sess.mode === "daily") {
     sess.queue.push(...fresh);
     sess.total += fresh.length;
     day.planned += fresh.length;
-    toast(`Added ${fresh.length} new questions`);
+    toast(`Added ${fresh.length} new question${fresh.length === 1 ? "" : "s"}`);
     persist();
-    if (currentView === "quiz") renderCurrent();
+    show("quiz");
+    renderCurrent();
   } else {
-    day.planned += fresh.length;
+    // 目标额度取“已完成 + 这批新题”，避免与今天原本那 20 道重复计数
+    day.planned = Math.max(day.planned, day.done + fresh.length);
     S.session = {
       date: t,
       mode: "daily",
@@ -367,7 +427,7 @@ function addTwentyMore() {
       cram: [],
       total: fresh.length,
       resolved: [],
-    startTs: Date.now(),
+      startTs: Date.now(),
     };
     S.dailyBackup = null;
     persist();
@@ -376,14 +436,14 @@ function addTwentyMore() {
   }
 }
 
-function startFavSession() {
-  const nums = favNums();
-  if (!nums.length) return toast("No bookmarks yet — tap ☆ in a quiz or the bank first");
+/* 收藏夹 / 错题本共用同一套“清单会话”逻辑 */
+function startListSession(mode, nums, emptyMsg) {
+  if (!nums.length) return toast(emptyMsg);
   const sess = activeSession();
-  if (sess && sess.mode === "daily") S.dailyBackup = sess; // 暂存每日任务
+  if (sess && sess.mode === "daily") S.dailyBackup = sess; // 暂存每日任务，清单刷完后自动恢复
   S.session = {
     date: todayKey(),
-    mode: "fav",
+    mode: mode,
     queue: nums.slice(),
     pos: 0,
     requeue: [],
@@ -395,6 +455,21 @@ function startFavSession() {
   persist();
   show("quiz");
   renderCurrent();
+}
+
+function startFavSession() {
+  startListSession(
+    "fav",
+    favNums(),
+    "No bookmarks yet — tap ☆ in a quiz or the bank first"
+  );
+}
+function startMbSession() {
+  startListSession(
+    "mb",
+    mbNums(),
+    "Mistake book is empty — tap ⚑ on a question to add it"
+  );
 }
 
 /* ---------- 答题渲染 ---------- */
@@ -443,7 +518,7 @@ function renderCurrent() {
     renderWait(item.wait);
     return;
   }
-  const firstTouch = !S.cards[item.num];
+  const firstTouch = !isAttempted(item.num);
   cur = {
     num: item.num,
     fromQueue: !!item.fromQueue,
@@ -482,14 +557,17 @@ function renderCard() {
   const remaining = sessionRemaining(s);
   const processed = s.total - remaining;
 
+  const MODE_TAG = { daily: "Daily set", fav: "Bookmarks", mb: "Mistake book" };
   $("#quiz-mode-label").innerHTML =
-    `<span class="tag">${s.mode === "fav" ? "Bookmarks" : "Daily set"}</span>` +
+    `<span class="tag">${MODE_TAG[s.mode] || "Daily set"}</span>` +
     (cur.cram ? '<span class="tag" style="background:var(--gold);color:#5b3a00">Cram zone</span>' : "");
   $("#quiz-count").textContent = `Done ${processed}/${s.total} · ${remaining} left`;
   $("#quiz-progress").style.width =
     Math.min(100, (processed / Math.max(s.total, 1)) * 100).toFixed(1) + "%";
   $("#btn-fav-toggle").textContent = c.fav ? "★" : "☆";
   $("#btn-fav-toggle").classList.toggle("faved", !!c.fav);
+  $("#btn-mb-toggle").textContent = c.mb ? "⚑" : "⚐";
+  $("#btn-mb-toggle").classList.toggle("mbook", !!c.mb);
 
   const area = $("#quiz-area");
   const badges = [];
@@ -603,6 +681,7 @@ function submitAnswer(picks) {
     c.lv = 0;
   }
   c.lastAt = Date.now();
+  c.seen = 1; // 真正作答过（区别于“只收藏 / 只加错题本”）
   updateStreak();
   persist();
   renderBack(correct);
@@ -781,9 +860,9 @@ function finishSession() {
     }
   });
 
-  const isFav = s.mode === "fav";
-  S.session = isFav ? S.dailyBackup || null : null;
-  if (!isFav) S.dailyBackup = null;
+  const isAux = s.mode === "fav" || s.mode === "mb"; // 收藏夹 / 错题本：刷完自动恢复每日任务
+  S.session = isAux ? S.dailyBackup || null : null;
+  if (!isAux) S.dailyBackup = null;
   persist();
 
   const correctToday = day.correct;
@@ -799,8 +878,9 @@ function finishSession() {
   });
   const preview = dueTomorrow.slice(0, 6);
 
-  $("#result-title").textContent = isFav
-    ? "Bookmarks cleared 🎉"
+  const AUX_TITLE = { fav: "Bookmarks cleared 🎉", mb: "Mistake book cleared 🎉" };
+  $("#result-title").textContent = AUX_TITLE[s.mode]
+    ? AUX_TITLE[s.mode]
     : day.done >= day.planned
       ? "Daily goal complete 🎉"
       : "Round complete";
@@ -818,10 +898,16 @@ function finishSession() {
       Questions missed and still unmastered get <b>pinned tomorrow morning</b>; mastered ones cycle back at 1 / 3 / 7 / 21-day intervals.
     </div>
     <p style="color:var(--ink-2);font-size:13px">Today's new-question quota ${day.done} / ${day.planned}${
-      isFav ? " (bookmarks don't use quota)" : day.done < day.planned ? " · progress saved — resume anytime" : " · quota complete 🎉"
+      s.mode === "fav"
+        ? " (bookmarks don't use quota)"
+        : s.mode === "mb"
+          ? " (mistake book doesn't use quota)"
+          : day.done < day.planned
+            ? " · progress saved — resume anytime"
+            : " · quota complete 🎉"
     }</p>`;
 
-  $("#btn-result-more20").hidden = isFav;
+  $("#btn-result-more20").hidden = unseenNums().length === 0;
   show("result");
 }
 
@@ -831,12 +917,7 @@ $("#quiz-exit").addEventListener("click", () => {
   show("home");
   renderHome();
 });
-$("#btn-main-action").addEventListener("click", () => {
-  const day = ensureDay();
-  if (activeSession()) startDailySession();
-  else if (day.done >= day.planned) addTwentyMore();
-  else startDailySession();
-});
+$("#btn-main-action").addEventListener("click", startDailySession);
 $("#btn-more20").addEventListener("click", addTwentyMore);
 $("#btn-result-more20").addEventListener("click", addTwentyMore);
 $("#btn-result-home").addEventListener("click", () => {
@@ -844,7 +925,18 @@ $("#btn-result-home").addEventListener("click", () => {
   show("home");
 });
 $("#btn-fav-run").addEventListener("click", startFavSession);
-  $("#btn-fav-toggle").addEventListener("click", () => {
+$("#btn-mb-run").addEventListener("click", startMbSession);
+$("#btn-mb-toggle").addEventListener("click", () => {
+  if (!cur) return;
+  const c = card(cur.num);
+  c.mb = c.mb ? 0 : 1;
+  c.lastAt = Date.now(); // 参与跨设备合并的“谁更新”判断
+  persist();
+  $("#btn-mb-toggle").textContent = c.mb ? "⚑" : "⚐";
+  $("#btn-mb-toggle").classList.toggle("mbook", !!c.mb);
+  toast(c.mb ? "Added to mistake book ⚑" : "Removed from mistake book");
+});
+$("#btn-fav-toggle").addEventListener("click", () => {
   if (!cur) return;
   const c = card(cur.num);
   c.fav = c.fav ? 0 : 1;
@@ -886,7 +978,7 @@ let bankSearch = "";
 
 function statusOf(num) {
   const c = S.cards[num];
-  if (!c) return { txt: "Unseen", cls: "new" };
+  if (!isAttempted(num)) return { txt: "Unseen", cls: "new" };
   if (c.lv >= 3) return { txt: "Mastered", cls: "lv3" };
   if (c.lv >= 1) return { txt: "Reviewing", cls: "lv2" };
   if (c.wrongTotal > 0) return { txt: "Weak", cls: "weak" };
@@ -900,13 +992,15 @@ function renderBank() {
     const c = S.cards[q.num];
     switch (bankFilter) {
       case "unseen":
-        return !c;
+        return !isAttempted(q.num);
       case "weak":
         return c && c.lv === 0 && c.wrongTotal > 0;
       case "due":
         return c && c.due > 0 && c.due <= now;
       case "fav":
         return c && c.fav;
+      case "mb":
+        return c && c.mb;
       case "new":
         return !!q.isNew;
       case "img":
@@ -943,6 +1037,9 @@ function renderBank() {
           ${q.multi ? '<span class="bi-status" style="background:#efe7ff;color:#5b3f9e">Multi</span>' : ""}
           ${c && c.fav ? '<span class="bi-fav">★</span>' : ""}
           <span style="flex:1"></span>
+          <button class="bi-mbtoggle${c && c.mb ? " on" : ""}" data-mb="${q.num}"
+            title="${c && c.mb ? "Remove from mistake book" : "Add to mistake book"}"
+            aria-label="Toggle mistake book">${c && c.mb ? "⚑" : "⚐"}</button>
           <span class="bi-status">Answer ${q.answer}</span>
         </div>
         <div class="bi-stem">${esc(stripTags(q.stem).slice(0, 90))}…</div>
@@ -951,6 +1048,18 @@ function renderBank() {
     .join("");
   list.querySelectorAll(".bank-item").forEach((el) => {
     el.addEventListener("click", () => openBankDetail(Number(el.dataset.num)));
+  });
+  list.querySelectorAll(".bi-mbtoggle").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation(); // 不要顺带打开详情弹窗
+      const num = Number(btn.dataset.mb);
+      const c = card(num);
+      c.mb = c.mb ? 0 : 1;
+      c.lastAt = Date.now();
+      persist();
+      toast(c.mb ? `Q${num} added to mistake book ⚑` : `Q${num} removed from mistake book`);
+      renderBank();
+    });
   });
 }
 
@@ -1008,6 +1117,7 @@ function openBankDetail(num) {
         </div>
       </div>
       <div class="quiz-actions">
+        <button class="btn ${c.mb ? "btn-mb-on" : "btn-outline"}" id="bd-mb">${c.mb ? "⚑ In mistake book" : "⚐ Add to mistake book"}</button>
         <button class="btn ${c.fav ? "btn-gold" : "btn-outline"}" id="bd-fav"><span class="bigstar">${c.fav ? "★" : "☆"}</span> ${c.fav ? "Bookmarked" : "Bookmark"}</button>
       </div>
     </div>`;
@@ -1016,6 +1126,15 @@ function openBankDetail(num) {
     if (e.target === overlay) overlay.remove();
   });
   overlay.querySelector(".bd-close").addEventListener("click", () => overlay.remove());
+  overlay.querySelector("#bd-mb").addEventListener("click", () => {
+    c.mb = c.mb ? 0 : 1;
+    c.lastAt = Date.now();
+    persist();
+    renderBank();
+    overlay.remove();
+    openBankDetail(num);
+    toast(c.mb ? "Added to mistake book ⚑" : "Removed from mistake book");
+  });
   overlay.querySelector("#bd-fav").addEventListener("click", () => {
     c.fav = c.fav ? 0 : 1;
     c.lastAt = Date.now();
@@ -1280,12 +1399,13 @@ function refreshSyncIndicators() {
 
 function renderHomeMeta() {
   const fav = favNums().length;
+  const mb = mbNums().length;
   const unseen = unseenNums().length;
   const bmeta = window.PMLE_BANK_META || {};
   const stamp = bmeta.build
     ? ` · bank built ${bmeta.build}${bmeta.fixed ? ` (${bmeta.fixed} answers corrected)` : ""}`
     : "";
-  $("#home-meta").textContent = `${BANK.length} questions · ${unseen} unseen · ${fav} bookmarked · 27 new (376-402)${stamp} · ${syncSummary()}`;
+  $("#home-meta").textContent = `${BANK.length} questions · ${unseen} unseen · ${fav} bookmarked · ${mb} in mistake book · 27 new (376-402)${stamp} · ${syncSummary()}`;
 }
 
 function renderSyncView() {
@@ -1313,7 +1433,7 @@ function renderSyncView() {
     st.innerHTML = `Sync error: ${esc(sync.lastError)}<br>Local progress is safe. Fix the issue and click "Sync now" to retry.`;
   } else {
     st.className = "sync-state ok";
-    const counts = `Local: ${Object.keys(S.cards).length} attempted · ${favNums().length} bookmarked`;
+    const counts = `Local: ${attemptedCount()} attempted · ${favNums().length} bookmarked · ${mbNums().length} in mistake book`;
     const ri = sync.remoteInfo;
     const cloudLine = ri
       ? `Cloud: ${ri.cards} attempted · ${ri.favs} bookmarked${
@@ -1398,12 +1518,14 @@ function renderStats() {
     lv34 = 0,
     lv12 = 0,
     weakN = 0,
-    favN = 0;
+    favN = 0,
+    mbN = 0;
   const weakList = [];
   Object.keys(S.cards).forEach((n) => {
     const c = S.cards[n];
-    touched++;
+    if (isAttempted(Number(n))) touched++;
     if (c.fav) favN++;
+    if (c.mb) mbN++;
     if (c.lv >= 3) lv34++;
     else if (c.lv >= 1) lv12++;
     else if (c.wrongTotal > 0) {
@@ -1429,7 +1551,25 @@ function renderStats() {
       <div class="stat-card"><b>${lv12}</b><span>Reviewing (1/3-day)</span></div>
       <div class="stat-card"><b>${weakN}</b><span>Not mastered</span></div>
       <div class="stat-card"><b>${favN}</b><span>Bookmarked</span></div>
+      <div class="stat-card"><b>${mbN}</b><span>In mistake book</span></div>
       <div class="stat-card"><b>${S.streakCount}</b><span>Day streak</span></div>
+    </div>
+    <div class="panel">
+      <h3>Mistake book ${mbN ? `(${mbN})` : ""}</h3>
+      <div class="weak-list">${
+        mbN
+          ? Object.keys(S.cards)
+              .filter((n) => S.cards[n] && S.cards[n].mb)
+              .map(Number)
+              .sort((a, b) => a - b)
+              .slice(0, 60)
+              .map(
+                (n) =>
+                  `<div class="weak-item mb-item" data-num="${n}"><b style="color:var(--pri)">Q${n}</b> · ${esc(stripTags(byNum[n].stem).slice(0, 60))}…</div>`
+              )
+              .join("")
+          : '<div style="color:var(--ink-2);font-size:14px">Empty — tap ⚑ on any question to flag it for focused review.</div>'
+      }</div>
     </div>
     <div class="panel">
       <h3>Not mastered (sorted by misses)</h3>

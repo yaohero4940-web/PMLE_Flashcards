@@ -35,7 +35,10 @@
     const out = Object.assign({}, base);
     out.lv = num(base.lv);
     out.due = num(base.due);
-    out.fav = num(base.fav) ? 1 : 0;
+    // 标记类字段（收藏 / 错题本）：以较新的一份为准；若较新的一份根本没有该字段
+    // （旧版本存档），则沿用另一份的值，避免升级后标记被抹掉
+    out.fav = base.fav === undefined ? (num(other.fav) ? 1 : 0) : num(base.fav) ? 1 : 0;
+    out.mb = base.mb === undefined ? (num(other.mb) ? 1 : 0) : num(base.mb) ? 1 : 0;
     out.lastAt = Math.max(num(a.lastAt), num(b.lastAt));
     out.wrongTotal = Math.max(num(a.wrongTotal), num(b.wrongTotal));
     out.wrongByDay = mergeWrongByDay(a.wrongByDay, b.wrongByDay);
