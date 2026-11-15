@@ -6,6 +6,14 @@
 - 全部进度保存在浏览器本地（localStorage），刷新 / 关闭浏览器进度不丢
 - 电脑、手机自适应
 
+## 排版与视觉
+
+- 正文字体 **Atkinson Hyperlegible**（自托管 woff2，存于 `assets/fonts/`，不依赖 Google Fonts CDN，国内访问也稳定）；中文译文回落到系统中文黑体
+- 基准字号 **18px**、行高 **1.6**；阅读内容（题干 / 选项 / 译文 / 精讲）由原文基准 × `--fs`（80%–150%）缩放，缩字不破坏布局
+- 页面背景 **#FAF7F2**（米白），主题色仍为 **#00008F** 深蓝渐变
+- 界面文案全英文；题目内容保持「英文原题 + 中文翻译 + 中英精讲」
+- 顶栏 Google 徽标：Google LLC，Public domain（PD-textlogo），via Wikimedia Commons — `assets/google-logo.svg`（商标归 Google LLC，仅作标识示意使用）
+
 ## 题库构成
 
 | 部分 | 来源 | 答案版本 |

@@ -27,10 +27,10 @@ function applyFs(showTip) {
   if (showTip)
     toast(
       fsScale <= FS_MIN
-        ? "已到最小字号"
+        ? "Minimum font size reached"
         : fsScale >= FS_MAX
-          ? "已到最大字号"
-          : "阅读字号 " + Math.round(fsScale * 100) + "%"
+          ? "Maximum font size reached"
+          : "Reading size " + Math.round(fsScale * 100) + "%"
     );
 }
 function fsChange(dir) {
@@ -97,7 +97,7 @@ function persist(opts) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(S));
   } catch (e) {
-    toast("⚠️ 本地存储写入失败");
+    toast("⚠️ Failed to save progress locally");
   }
   if (!opts || !opts.noSync) schedulePush();
 }
@@ -119,7 +119,7 @@ function migrateCorrections() {
   });
   S.corrVer = CORR_VER;
   persist();
-  if (touched) toast(`已重置 ${touched} 道答案修正题的旧记录`);
+  if (touched) toast(`Reset stale records for ${touched} corrected question(s)`);
 }
 function card(num) {
   if (!S.cards[num])
@@ -205,29 +205,33 @@ function renderHome() {
   const day = ensureDay();
   const sess = activeSession();
 
-  const wk = ["日", "一", "二", "三", "四", "五", "六"];
   const now = new Date();
-  $("#home-date").textContent = `${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日 · 星期${wk[now.getDay()]}`;
+  $("#home-date").textContent = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   let progressHtml, mainLabel;
   if (sess) {
     const remaining = sessionRemaining(sess);
-    progressHtml = `今日任务进行中 <small>（还剩 ${remaining} 张卡待处理）</small>`;
-    mainLabel = "从断点继续";
+    progressHtml = `Daily session in progress <small>(${remaining} cards left)</small>`;
+    mainLabel = "Resume session";
     $("#btn-more20").hidden = true;
   } else if (day.done >= day.planned) {
-    progressHtml = `今日已完成 <span>${day.done}</span> / ${day.planned} 道新题 <small>🎉</small>`;
-    mainLabel = unseenNums().length ? "再来 20 题" : "今日题已刷完";
+    progressHtml = `Today: <span>${day.done}</span> / ${day.planned} new questions done <small>🎉</small>`;
+    mainLabel = unseenNums().length ? "20 more questions" : "All caught up today";
     $("#btn-more20").hidden = false;
   } else {
-    progressHtml = `今日已完成 <span>${day.done}</span> / ${day.planned} 道新题`;
-    mainLabel = "开始今日 20 题";
+    progressHtml = `Today: <span>${day.done}</span> / ${day.planned} new questions done`;
+    mainLabel = "Start today's 20";
     $("#btn-more20").hidden = true;
   }
   $("#home-progress").innerHTML = progressHtml;
   const btn = $("#btn-main-action");
   btn.textContent = mainLabel;
-  btn.disabled = mainLabel === "今日题已刷完";
+  btn.disabled = mainLabel === "All caught up today";
 
   const due = reviewDueNums();
   const yk = todayKey(new Date(Date.now() - DAY));
@@ -238,9 +242,9 @@ function renderHome() {
   });
   $("#home-review").innerHTML =
     (due.length
-      ? `今天开场需先复习 <b>${due.length}</b> 道到期 / 昨日未掌握的题`
-      : "今天没有待复习的题，直接开新题") +
-    `（昨日答错未掌握：${yWrong} 道）`;
+      ? `Warm-up first: <b>${due.length}</b> due / yesterday's unmastered questions`
+      : "No reviews due today — straight to new questions") +
+    ` (missed yesterday: ${yWrong})`;
 
   renderHomeMeta();
 
@@ -272,11 +276,11 @@ function renderHomeStats() {
   });
   const acc = correct + wrong ? Math.round((correct / (correct + wrong)) * 100) : 0;
   $("#home-stats").innerHTML = `
-    <div class="stat-row"><span>累计刷过的题</span><b>${touched}</b></div>
-    <div class="stat-row"><span>总正确率</span><b>${acc}%</b></div>
-    <div class="stat-row"><span>已掌握（7 / 21 天间隔）</span><b>${lv34}</b></div>
-    <div class="stat-row"><span>复习中（1 / 3 天间隔）</span><b>${lv12}</b></div>
-    <div class="stat-row"><span>未掌握</span><b>${lv0weak}</b></div>`;
+    <div class="stat-row"><span>Questions attempted</span><b>${touched}</b></div>
+    <div class="stat-row"><span>Overall accuracy</span><b>${acc}%</b></div>
+    <div class="stat-row"><span>Mastered (7/21-day intervals)</span><b>${lv34}</b></div>
+    <div class="stat-row"><span>Reviewing (1/3-day intervals)</span><b>${lv12}</b></div>
+    <div class="stat-row"><span>Not mastered</span><b>${lv0weak}</b></div>`;
 }
 
 function renderHeatmap() {
@@ -297,10 +301,10 @@ function renderHeatmap() {
     else if (act >= 5) cell.classList.add("hm-l2");
     else if (act >= 1) cell.classList.add("hm-l1");
     if (k === tKey) cell.classList.add("hm-today");
-    cell.title = `${k}：答题 ${act} 次`;
+    cell.title = `${k}: ${act} answer${act === 1 ? "" : "s"}`;
     wrap.appendChild(cell);
   }
-  $("#streak-line").innerHTML = `连续打卡 <b>${S.streakCount}</b> 天`;
+  $("#streak-line").innerHTML = `Current streak: <b>${S.streakCount}</b> day${S.streakCount === 1 ? "" : "s"}`;
 }
 
 /* ---------- 会话构建 ---------- */
@@ -319,7 +323,7 @@ function startDailySession() {
   if (remaining > 0) fresh = unseenNums().slice(0, remaining);
   const queue = review.concat(fresh);
   if (!queue.length) {
-    toast("没有可刷的题了 🎉");
+    toast("Nothing left to practice 🎉");
     return;
   }
   S.session = {
@@ -343,13 +347,13 @@ function addTwentyMore() {
   const t = todayKey();
   const day = ensureDay();
   const fresh = unseenNums().slice(0, 20);
-  if (!fresh.length) return toast("没有新题可加了 🎉");
+  if (!fresh.length) return toast("No more new questions to add 🎉");
   const sess = activeSession();
   if (sess && sess.mode === "daily") {
     sess.queue.push(...fresh);
     sess.total += fresh.length;
     day.planned += fresh.length;
-    toast(`已追加 ${fresh.length} 道新题`);
+    toast(`Added ${fresh.length} new questions`);
     persist();
     if (currentView === "quiz") renderCurrent();
   } else {
@@ -374,7 +378,7 @@ function addTwentyMore() {
 
 function startFavSession() {
   const nums = favNums();
-  if (!nums.length) return toast("收藏夹是空的，先在答题页或题库页点 ☆ 收藏");
+  if (!nums.length) return toast("No bookmarks yet — tap ☆ in a quiz or the bank first");
   const sess = activeSession();
   if (sess && sess.mode === "daily") S.dailyBackup = sess; // 暂存每日任务
   S.session = {
@@ -459,8 +463,8 @@ function renderWait(ms) {
   area.innerHTML = `
     <div class="qface" style="text-align:center;padding:60px 20px">
       <div style="font-size:46px;font-weight:800;color:var(--pri-d)">${sec}</div>
-      <p style="color:var(--ink-2);font-size:15px;margin-top:12px">错题重弹倒计时…（趁热记住它！）</p>
-      <button class="btn btn-outline" id="wait-quit">先退出，稍后再战</button>
+      <p style="color:var(--ink-2);font-size:15px;margin-top:12px">Missed cards will reappear soon… (lock them in!)</p>
+      <button class="btn btn-outline" id="wait-quit">Exit for now</button>
     </div>`;
   $("#wait-quit").addEventListener("click", () => {
     show("home");
@@ -479,9 +483,9 @@ function renderCard() {
   const processed = s.total - remaining;
 
   $("#quiz-mode-label").innerHTML =
-    `<span class="tag">${s.mode === "fav" ? "收藏夹模式" : "每日任务"}</span>` +
-    (cur.cram ? '<span class="tag" style="background:var(--gold);color:#5b3a00">攻坚区</span>' : "");
-  $("#quiz-count").textContent = `已彻底完成 ${processed}/${s.total} · 待处理 ${remaining}`;
+    `<span class="tag">${s.mode === "fav" ? "Bookmarks" : "Daily set"}</span>` +
+    (cur.cram ? '<span class="tag" style="background:var(--gold);color:#5b3a00">Cram zone</span>' : "");
+  $("#quiz-count").textContent = `Done ${processed}/${s.total} · ${remaining} left`;
   $("#quiz-progress").style.width =
     Math.min(100, (processed / Math.max(s.total, 1)) * 100).toFixed(1) + "%";
   $("#btn-fav-toggle").textContent = c.fav ? "★" : "☆";
@@ -489,12 +493,12 @@ function renderCard() {
 
   const area = $("#quiz-area");
   const badges = [];
-  if (q.isNew) badges.push('<span class="badge new">402 新题</span>');
-  if (q.fixed) badges.push('<span class="badge fixed">答案已修正</span>');
-  if (isMulti) badges.push('<span class="badge multi">多选</span>');
-  if (cur.retry) badges.push('<span class="badge retry">重弹</span>');
-  if (c.lv >= 3) badges.push('<span class="badge">已掌握·远期</span>');
-  else if (c.lv >= 1) badges.push('<span class="badge">复习中</span>');
+  if (q.isNew) badges.push('<span class="badge new">New (402)</span>');
+  if (q.fixed) badges.push('<span class="badge fixed">Answer corrected</span>');
+  if (isMulti) badges.push('<span class="badge multi">Multi-select</span>');
+  if (cur.retry) badges.push('<span class="badge retry">Retry</span>');
+  if (c.lv >= 3) badges.push('<span class="badge">Mastered</span>');
+  else if (c.lv >= 1) badges.push('<span class="badge">Reviewing</span>');
 
   const optsFront = q.opts
     .map(
@@ -507,9 +511,9 @@ function renderCard() {
     .join("");
 
   const frontActions = isMulti
-    ? `<div class="multisubmit"><button id="btn-submit-multi" class="btn btn-primary">提交答案（已选 <span id="picked-n">0</span> 项）</button></div>`
+    ? `<div class="multisubmit"><button id="btn-submit-multi" class="btn btn-primary">Submit answer (<span id="picked-n">0</span> selected)</button></div>`
     : "";
-  const skipBtn = `<button class="btn btn-ghost" id="btn-skip">跳过，稍后再说</button>`;
+  const skipBtn = `<button class="btn btn-ghost" id="btn-skip">Skip for now</button>`;
 
   area.innerHTML = `
     <div class="flip-wrap">
@@ -555,7 +559,7 @@ function renderCard() {
       });
     });
     $("#btn-submit-multi").addEventListener("click", () => {
-      if (!cur.picked.size) return toast("先选择至少一个选项");
+      if (!cur.picked.size) return toast("Pick at least one option first");
       submitAnswer([...cur.picked]);
     });
   } else {
@@ -635,38 +639,38 @@ function renderBack(correct) {
     .join("");
 
   const pdfExpl = q.explEn
-    ? `<details class="pdf-expl"><summary>📄 PDF 原文解析（点开查看）</summary>
+    ? `<details class="pdf-expl"><summary>📄 Original PDF explanation (tap to expand)</summary>
         <div class="bbody">${esc(q.explEn)}</div></details>`
     : "";
 
   const verdict = correct
-    ? `<div class="verdict ok">✅ 回答正确 · 你觉得掌握了吗？</div>`
-    : `<div class="verdict no">❌ 回答错误 · 正确答案：${q.answer}</div>`;
+    ? `<div class="verdict ok">✅ Correct — do you know it cold?</div>`
+    : `<div class="verdict no">❌ Wrong · Correct answer: ${q.answer}</div>`;
 
   let note = "";
   let actions = "";
   if (correct) {
     actions = `
-      <button class="btn btn-green" id="btn-mastered">已掌握</button>
-      <button class="btn btn-red" id="btn-notmastered">未掌握（1 分钟后重做）</button>`;
+      <button class="btn btn-green" id="btn-mastered">Mastered</button>
+      <button class="btn btn-red" id="btn-notmastered">Not mastered (retry in 1 min)</button>`;
   } else if (wrongCntToday >= 3) {
-    note = `<div class="requeue-note">本题今天已答错 ${wrongCntToday} 次，移入<b>本轮结束攻坚区</b>集中攻克，不再每分钟硬弹。</div>`;
-    actions = `<button class="btn btn-primary" id="btn-nextq">下一题</button>`;
+    note = `<div class="requeue-note">Missed ${wrongCntToday} times today — moved to the <b>end-of-round cram zone</b> instead of re-popping every minute.</div>`;
+    actions = `<button class="btn btn-primary" id="btn-nextq">Next question</button>`;
   } else {
-    note = `<div class="requeue-note">已加入重弹队列：<b>约 1 分钟后</b>再次出现，直到答对并点「已掌握」。</div>`;
-    actions = `<button class="btn btn-primary" id="btn-nextq">下一题</button>`;
+    note = `<div class="requeue-note">Queued for retry: reappears <b>in about 1 minute</b> until you answer it right and tap "Mastered".</div>`;
+    actions = `<button class="btn btn-primary" id="btn-nextq">Next question</button>`;
   }
 
   $("#qface-back").innerHTML = `
     <div class="qnum-line">
-      <span class="qnum">QUESTION ${q.num} · 答案面</span>
+      <span class="qnum">QUESTION ${q.num} · Answer</span>
     </div>
     <div class="back-grid">
       <div class="back-col">
         <div class="qstem">${q.stem}</div>
         ${verdict}
         <div class="backsec">
-          <h4>答案标注（绿 = 正确答案，红 = 你选错的）</h4>
+          <h4>Answer key (green = correct, red = your wrong pick)</h4>
           ${marked}
         </div>
       </div>
@@ -674,23 +678,23 @@ function renderBack(correct) {
         ${
           q.zh && q.zh.stem
             ? `<div class="backsec">
-          <h4>中文翻译</h4>
+          <h4>Chinese Translation 中文翻译</h4>
           <div class="bbody zho">
-            <p style="margin-bottom:6px"><b>题干</b></p>
+            <p style="margin-bottom:6px"><b>Question 题干</b></p>
             ${q.zh.stem}
-            <p style="margin:8px 0 4px"><b>选项</b></p>
+            <p style="margin:8px 0 4px"><b>Options 选项</b></p>
             ${zhOpts}
           </div>
         </div>`
             : ""
         }
         <div class="backsec">
-          <h4>精讲</h4>
+          <h4>Explanation 精讲</h4>
           <div class="ex-content">
             ${q.core ? `<div class="core-chip">${q.core}</div>` : ""}
             ${q.ex}
             ${pdfExpl}
-            ${q.ref ? `<p style="font-size:12px;color:var(--ink-2)">参考：${esc(q.ref)}</p>` : ""}
+            ${q.ref ? `<p style="font-size:12px;color:var(--ink-2)">Reference: ${esc(q.ref)}</p>` : ""}
           </div>
         </div>
       </div>
@@ -796,25 +800,25 @@ function finishSession() {
   const preview = dueTomorrow.slice(0, 6);
 
   $("#result-title").textContent = isFav
-    ? "收藏夹刷完 🎉"
+    ? "Bookmarks cleared 🎉"
     : day.done >= day.planned
-      ? "今日任务完成 🎉"
-      : "本轮刷完";
+      ? "Daily goal complete 🎉"
+      : "Round complete";
   $("#result-body").innerHTML = `
     <div class="big-nums">
-      <div class="bn"><b>${s.total}</b><span>处理卡片数</span></div>
-      <div class="bn ok"><b>${correctToday}</b><span>今日答对</span></div>
-      <div class="bn bad"><b>${wrongToday}</b><span>今日答错</span></div>
-      <div class="bn"><b>${acc}%</b><span>今日正确率</span></div>
+      <div class="bn"><b>${s.total}</b><span>Cards handled</span></div>
+      <div class="bn ok"><b>${correctToday}</b><span>Correct today</span></div>
+      <div class="bn bad"><b>${wrongToday}</b><span>Missed today</span></div>
+      <div class="bn"><b>${acc}%</b><span>Accuracy today</span></div>
     </div>
     <div class="tomorrow-box">
-      <b>明日复习预告</b>：开场将先复习 <b>${dueTomorrow.length}</b> 道到期 / 未掌握的题${
-        preview.length ? `（含 Q${preview.join("、Q")}…）` : ""
-      }。<br>
-      今日答错且最终未掌握的题会<b>明早自动置顶</b>；已掌握的题按 1 / 3 / 7 / 21 天间隔轮回复现。
+      <b>Tomorrow's warm-up</b>: <b>${dueTomorrow.length}</b> due / unmastered questions first${
+        preview.length ? ` (incl. Q${preview.join(", Q")}…)` : ""
+      }.<br>
+      Questions missed and still unmastered get <b>pinned tomorrow morning</b>; mastered ones cycle back at 1 / 3 / 7 / 21-day intervals.
     </div>
-    <p style="color:var(--ink-2);font-size:13px">今日新题额度 ${day.done} / ${day.planned}${
-      isFav ? "（收藏夹模式不占额度）" : day.done < day.planned ? " · 剩余进度已保存，随时从断点继续" : " · 额度全部完成 🎉"
+    <p style="color:var(--ink-2);font-size:13px">Today's new-question quota ${day.done} / ${day.planned}${
+      isFav ? " (bookmarks don't use quota)" : day.done < day.planned ? " · progress saved — resume anytime" : " · quota complete 🎉"
     }</p>`;
 
   $("#btn-result-more20").hidden = isFav;
@@ -848,7 +852,7 @@ $("#btn-fav-run").addEventListener("click", startFavSession);
   persist();
   $("#btn-fav-toggle").textContent = c.fav ? "★" : "☆";
   $("#btn-fav-toggle").classList.toggle("faved", !!c.fav);
-  toast(c.fav ? "已收藏 ⭐" : "已取消收藏");
+  toast(c.fav ? "Bookmarked ⭐" : "Bookmark removed");
 });
 
 /* ---------- 键盘快捷键（电脑端） ---------- */
@@ -882,11 +886,11 @@ let bankSearch = "";
 
 function statusOf(num) {
   const c = S.cards[num];
-  if (!c) return { txt: "未做过", cls: "new" };
-  if (c.lv >= 3) return { txt: "已掌握", cls: "lv3" };
-  if (c.lv >= 1) return { txt: "复习中", cls: "lv2" };
-  if (c.wrongTotal > 0) return { txt: "未掌握", cls: "weak" };
-  return { txt: "做过", cls: "lv1" };
+  if (!c) return { txt: "Unseen", cls: "new" };
+  if (c.lv >= 3) return { txt: "Mastered", cls: "lv3" };
+  if (c.lv >= 1) return { txt: "Reviewing", cls: "lv2" };
+  if (c.wrongTotal > 0) return { txt: "Weak", cls: "weak" };
+  return { txt: "Seen", cls: "lv1" };
 }
 
 function renderBank() {
@@ -924,7 +928,7 @@ function renderBank() {
   });
 
   if (!items.length) {
-    list.innerHTML = '<div class="panel">没有符合筛选条件的题目。</div>';
+    list.innerHTML = '<div class="panel">No questions match this filter.</div>';
     return;
   }
   list.innerHTML = items
@@ -935,11 +939,11 @@ function renderBank() {
         <div class="bi-top">
           <span class="bi-num">Q${q.num}</span>
           <span class="bi-status ${st.cls}">${st.txt}</span>
-          ${q.isNew ? '<span class="bi-status new">新</span>' : ""}
-          ${q.multi ? '<span class="bi-status" style="background:#efe7ff;color:#5b3f9e">多选</span>' : ""}
+          ${q.isNew ? '<span class="bi-status new">New</span>' : ""}
+          ${q.multi ? '<span class="bi-status" style="background:#efe7ff;color:#5b3f9e">Multi</span>' : ""}
           ${c && c.fav ? '<span class="bi-fav">★</span>' : ""}
           <span style="flex:1"></span>
-          <span class="bi-status">答案 ${q.answer}</span>
+          <span class="bi-status">Answer ${q.answer}</span>
         </div>
         <div class="bi-stem">${esc(stripTags(q.stem).slice(0, 90))}…</div>
       </div>`;
@@ -976,35 +980,35 @@ function openBankDetail(num) {
       <div class="qnum-line">
         <span class="qnum">QUESTION ${q.num}</span>
         <span class="bi-status ${st.cls}">${st.txt}</span>
-        ${q.isNew ? '<span class="bi-status new">402 新题</span>' : ""}
-        ${q.fixed ? '<span class="bi-status fixed">答案已修正</span>' : ""}
-        ${q.multi ? '<span class="bi-status" style="background:#efe7ff;color:#5b3f9e">多选</span>' : ""}
+        ${q.isNew ? '<span class="bi-status new">New (402)</span>' : ""}
+        ${q.fixed ? '<span class="bi-status fixed">Answer corrected</span>' : ""}
+        ${q.multi ? '<span class="bi-status" style="background:#efe7ff;color:#5b3f9e">Multi</span>' : ""}
       </div>
       <div class="back-grid">
         <div class="back-col">
           <div class="qstem">${q.stem}</div>
-          <div class="backsec"><h4>答案</h4>${marked}</div>
+          <div class="backsec"><h4>Answer</h4>${marked}</div>
         </div>
         <div class="back-col">
           ${
             q.zh && q.zh.stem
-              ? `<div class="backsec"><h4>中文翻译</h4><div class="bbody zho">${q.zh.stem}<p style="margin:8px 0 4px"><b>选项</b></p>${zhOpts}</div></div>`
+              ? `<div class="backsec"><h4>Chinese Translation 中文翻译</h4><div class="bbody zho">${q.zh.stem}<p style="margin:8px 0 4px"><b>Options 选项</b></p>${zhOpts}</div></div>`
               : ""
           }
           <div class="backsec">
-            <h4>精讲</h4>
+            <h4>Explanation 精讲</h4>
             <div class="ex-content">${q.core ? `<div class="core-chip">${q.core}</div>` : ""}${q.ex}
             ${
               q.explEn
-                ? `<details class="pdf-expl"><summary>📄 PDF 原文解析</summary><div class="bbody">${esc(q.explEn)}</div></details>`
+                ? `<details class="pdf-expl"><summary>📄 Original PDF explanation</summary><div class="bbody">${esc(q.explEn)}</div></details>`
                 : ""
             }
-            ${q.ref ? `<p style="font-size:12px;color:var(--ink-2)">参考：${esc(q.ref)}</p>` : ""}</div>
+            ${q.ref ? `<p style="font-size:12px;color:var(--ink-2)">Reference: ${esc(q.ref)}</p>` : ""}</div>
           </div>
         </div>
       </div>
       <div class="quiz-actions">
-        <button class="btn ${c.fav ? "btn-gold" : "btn-outline"}" id="bd-fav"><span class="bigstar">${c.fav ? "★" : "☆"}</span> ${c.fav ? "已收藏" : "收藏"}</button>
+        <button class="btn ${c.fav ? "btn-gold" : "btn-outline"}" id="bd-fav"><span class="bigstar">${c.fav ? "★" : "☆"}</span> ${c.fav ? "Bookmarked" : "Bookmark"}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1045,7 +1049,7 @@ $("#btn-export").addEventListener("click", () => {
   a.download = `pmle-flashcards-progress-${todayKey()}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
-  toast("进度已导出（可用于换设备恢复）");
+  toast("Progress exported (use it to restore on another device)");
 });
 $("#btn-import").addEventListener("click", () => $("#import-file").click());
 $("#import-file").addEventListener("change", (e) => {
@@ -1058,11 +1062,11 @@ $("#import-file").addEventListener("change", (e) => {
       if (!data.cards || !data.days) throw new Error("bad format");
       S = Object.assign(defaultState(), data);
       persist();
-      toast("进度已导入 ✓");
+      toast("Progress imported ✓");
       renderBank();
       renderHome();
     } catch (err) {
-      toast("导入失败：文件格式不对");
+      toast("Import failed: invalid file format");
     }
   };
   r.readAsText(f);
@@ -1113,9 +1117,9 @@ function ghFetch(path, opts) {
   }).then((res) => {
     if (res.ok) return res.json();
     const map = {
-      401: "令牌无效或已过期（401）",
-      403: "权限不足或被限流（403），请确认令牌勾选了 gist",
-      404: "云端存档不存在（404）",
+      401: "Token invalid or expired (401)",
+      403: "Permission denied or rate-limited (403) — make sure the token has the gist scope",
+      404: "Cloud archive not found (404)",
     };
     const err = new Error(map[res.status] || res.status + " " + res.statusText);
     err.status = res.status;
@@ -1234,7 +1238,7 @@ async function syncNow(opts) {
     await pushState();
     sync.lastSync = Date.now();
     sync.lastError = "";
-    if (o.silent !== true) toast("已与云端同步 ✓");
+    if (o.silent !== true) toast("Synced with the cloud ✓");
     if (currentView !== "quiz") {
       if (currentView === "bank") renderBank();
       else if (currentView === "stats") renderStats();
@@ -1243,7 +1247,7 @@ async function syncNow(opts) {
     return true;
   } catch (e) {
     sync.lastError = e.message || String(e);
-    if (o.silent !== true) toast("同步失败：" + sync.lastError);
+    if (o.silent !== true) toast("Sync failed: " + sync.lastError);
     return false;
   } finally {
     sync.busy = false;
@@ -1256,15 +1260,15 @@ function fmtSyncTime(ts) {
   if (!ts) return "";
   const d = new Date(ts);
   const p = (n) => String(n).padStart(2, "0");
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 function syncSummary() {
-  if (!sync.token) return "☁️ 未开启云同步";
-  if (sync.busy) return "☁️ 同步中…";
-  if (sync.lastError) return "☁️ 同步异常";
-  if (!sync.lastSync) return "☁️ 已连接，待同步";
-  return `☁️ 已同步 ${fmtSyncTime(sync.lastSync)}`;
+  if (!sync.token) return "☁️ Cloud sync off";
+  if (sync.busy) return "☁️ Syncing…";
+  if (sync.lastError) return "☁️ Sync error";
+  if (!sync.lastSync) return "☁️ Connected, pending sync";
+  return `☁️ Synced ${fmtSyncTime(sync.lastSync)}`;
 }
 
 function refreshSyncIndicators() {
@@ -1279,9 +1283,9 @@ function renderHomeMeta() {
   const unseen = unseenNums().length;
   const bmeta = window.PMLE_BANK_META || {};
   const stamp = bmeta.build
-    ? ` · 题库构建 ${bmeta.build}${bmeta.fixed ? `（${bmeta.fixed} 题答案已修正）` : ""}`
+    ? ` · bank built ${bmeta.build}${bmeta.fixed ? ` (${bmeta.fixed} answers corrected)` : ""}`
     : "";
-  $("#home-meta").textContent = `题库共 ${BANK.length} 题 · 未做过 ${unseen} 题 · 收藏 ${fav} 题 · 含 27 道新题（376-402）${stamp} · ${syncSummary()}`;
+  $("#home-meta").textContent = `${BANK.length} questions · ${unseen} unseen · ${fav} bookmarked · 27 new (376-402)${stamp} · ${syncSummary()}`;
 }
 
 function renderSyncView() {
@@ -1289,13 +1293,13 @@ function renderSyncView() {
   if (!badge) return;
   if (!sync.token) {
     badge.className = "sync-badge off";
-    badge.textContent = "未连接";
+    badge.textContent = "Not connected";
   } else if (sync.lastError) {
     badge.className = "sync-badge err";
-    badge.textContent = "同步异常";
+    badge.textContent = "Sync error";
   } else {
     badge.className = "sync-badge on";
-    badge.textContent = sync.busy ? "同步中" : "已连接";
+    badge.textContent = sync.busy ? "Syncing" : "Connected";
   }
 
   const st = $("#sync-state");
@@ -1303,24 +1307,24 @@ function renderSyncView() {
   if (!sync.token) {
     st.className = "sync-state";
     st.innerHTML =
-      "尚未连接。填入令牌后点击「连接并同步」——本机已有的进度会与云端合并，不会丢。";
+      'Not connected. Paste your token and click "Connect & sync" — local progress merges with the cloud, nothing is lost.';
   } else if (sync.lastError) {
     st.className = "sync-state err";
-    st.innerHTML = `同步出错：${esc(sync.lastError)}<br>本地进度仍然安全，修复后点「立即同步」重试。`;
+    st.innerHTML = `Sync error: ${esc(sync.lastError)}<br>Local progress is safe. Fix the issue and click "Sync now" to retry.`;
   } else {
     st.className = "sync-state ok";
-    const counts = `本机进度：做过 ${Object.keys(S.cards).length} 题 · 收藏 ${favNums().length} 题`;
+    const counts = `Local: ${Object.keys(S.cards).length} attempted · ${favNums().length} bookmarked`;
     const ri = sync.remoteInfo;
     const cloudLine = ri
-      ? `云端存档：做过 ${ri.cards} 题 · 收藏 ${ri.favs} 题${
-          ri.updatedAt ? ` · 云端更新于 ${fmtSyncTime(ri.updatedAt)}` : ""
+      ? `Cloud: ${ri.cards} attempted · ${ri.favs} bookmarked${
+          ri.updatedAt ? ` · cloud updated ${fmtSyncTime(ri.updatedAt)}` : ""
         }`
-      : "云端存档：连接前云端为空，已用本机进度建立存档";
+      : "Cloud: empty before connecting — archive created from local progress";
     const gistLink = sync.gistId
-      ? ` · <a href="https://gist.github.com/${esc(sync.gistId)}" target="_blank" rel="noopener">打开云端存档核对</a>`
+      ? ` · <a href="https://gist.github.com/${esc(sync.gistId)}" target="_blank" rel="noopener">Open cloud archive</a>`
       : "";
-    st.innerHTML = `已连接${sync.gistId ? ` · 存档 <code>${esc(sync.gistId.slice(0, 8))}</code>` : ""}${
-      sync.lastSync ? ` · 上次同步 ${fmtSyncTime(sync.lastSync)}` : ""
+    st.innerHTML = `Connected${sync.gistId ? ` · archive <code>${esc(sync.gistId.slice(0, 8))}</code>` : ""}${
+      sync.lastSync ? ` · last sync ${fmtSyncTime(sync.lastSync)}` : ""
     }${gistLink}<br>${counts}<br>${cloudLine}`;
   }
 
@@ -1328,8 +1332,8 @@ function renderSyncView() {
   if (input) {
     input.value = "";
     input.placeholder = sync.token
-      ? "已保存令牌（如需更换请粘贴新令牌）"
-      : "ghp_…（classic 令牌，需勾选 gist）";
+      ? "Token saved (paste a new one to replace it)"
+      : "ghp_… (classic token, gist scope)";
   }
   const auto = $("#sync-auto");
   if (auto) auto.checked = sync.auto;
@@ -1349,7 +1353,7 @@ $("#btn-sync-connect").addEventListener("click", async () => {
     localStorage.removeItem(SYNC_GIST_KEY);
   }
   if (!sync.token) {
-    toast("请先粘贴 GitHub 令牌");
+    toast("Paste your GitHub token first");
     return;
   }
   sync.lastError = "";
@@ -1366,7 +1370,7 @@ $("#btn-sync-disconnect").addEventListener("click", () => {
   localStorage.removeItem(SYNC_GIST_KEY);
   refreshSyncIndicators();
   renderSyncView();
-  toast("已断开本机同步（云端存档保留）");
+  toast("Disconnected on this device (cloud archive kept)");
 });
 $("#sync-auto").addEventListener("change", (e) => {
   sync.auto = e.target.checked;
@@ -1416,29 +1420,29 @@ function renderStats() {
 
   $("#stats-body").innerHTML = `
     <div class="stats-grid">
-      <div class="stat-card"><b>${touched}</b><span>已刷过的题</span></div>
-      <div class="stat-card"><b>${BANK.length - touched}</b><span>未做过</span></div>
-      <div class="stat-card"><b>${acc}%</b><span>总正确率</span></div>
-      <div class="stat-card"><b>${correct}</b><span>答对次数</span></div>
-      <div class="stat-card"><b>${wrong}</b><span>答错次数</span></div>
-      <div class="stat-card"><b>${lv34}</b><span>已掌握（远期）</span></div>
-      <div class="stat-card"><b>${lv12}</b><span>复习中（1/3 天）</span></div>
-      <div class="stat-card"><b>${weakN}</b><span>未掌握</span></div>
-      <div class="stat-card"><b>${favN}</b><span>收藏</span></div>
-      <div class="stat-card"><b>${S.streakCount}</b><span>连续打卡天数</span></div>
+      <div class="stat-card"><b>${touched}</b><span>Attempted</span></div>
+      <div class="stat-card"><b>${BANK.length - touched}</b><span>Unseen</span></div>
+      <div class="stat-card"><b>${acc}%</b><span>Overall accuracy</span></div>
+      <div class="stat-card"><b>${correct}</b><span>Correct answers</span></div>
+      <div class="stat-card"><b>${wrong}</b><span>Wrong answers</span></div>
+      <div class="stat-card"><b>${lv34}</b><span>Mastered (long-term)</span></div>
+      <div class="stat-card"><b>${lv12}</b><span>Reviewing (1/3-day)</span></div>
+      <div class="stat-card"><b>${weakN}</b><span>Not mastered</span></div>
+      <div class="stat-card"><b>${favN}</b><span>Bookmarked</span></div>
+      <div class="stat-card"><b>${S.streakCount}</b><span>Day streak</span></div>
     </div>
     <div class="panel">
-      <h3>未掌握清单（按答错次数排序）</h3>
+      <h3>Not mastered (sorted by misses)</h3>
       <div class="weak-list">${
         weakList.length
           ? weakList
               .slice(0, 30)
               .map(
                 (w) =>
-                  `<div class="weak-item" data-num="${w.num}"><b style="color:var(--red-wrong)">Q${w.num}</b> · 答错 ${w.wrong} 次 · ${esc(stripTags(byNum[w.num].stem).slice(0, 60))}…</div>`
+                  `<div class="weak-item" data-num="${w.num}"><b style="color:var(--red-wrong)">Q${w.num}</b> · missed ${w.wrong}x · ${esc(stripTags(byNum[w.num].stem).slice(0, 60))}…</div>`
               )
               .join("")
-          : '<div style="color:var(--ink-2);font-size:14px">暂无未掌握的题 👍</div>'
+          : '<div style="color:var(--ink-2);font-size:14px">No weak questions 👍</div>'
       }</div>
     </div>`;
   document.querySelectorAll(".weak-item").forEach((el) => {

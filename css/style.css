@@ -1,4 +1,34 @@
 /* ================= PMLE 闪卡样式（主题色 #00008F 深蓝） ================= */
+/* Atkinson Hyperlegible（自托管 woff2，latin 子集） */
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/atkinson-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/atkinson-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/atkinson-400-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/atkinson-700-italic.woff2") format("woff2");
+}
+
 :root {
   /* 主题色系（#00008F = 深蓝） */
   --pri: #00008f;
@@ -9,7 +39,7 @@
   --gold-l: #ffd76a;
   --ink: #23263b;
   --ink-2: #5c6478;
-  --bg: #f2f5fc;
+  --bg: #faf7f2;
   --card: #ffffff;
   --line: #dbe2f2;
   --green: #1e8e4e;
@@ -28,11 +58,12 @@ html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: "Atkinson Hyperlegible", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 18px;
+  line-height: 1.6;
   color: var(--ink);
-  background: linear-gradient(180deg, #e9f0fd 0%, #f5f8ff 34%, #fafbfe 100%);
-  background-attachment: fixed;
+  background: #faf7f2;
   min-height: 100vh;
 }
 
@@ -63,6 +94,17 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 .brand .sub { font-weight: 400; font-size: 12px; opacity: 0.85; margin-left: 8px; }
+.brand { display: flex; align-items: center; }
+/* Google 徽标（公有领域 PD-textlogo；商标归 Google LLC）：白底胶囊保证在深蓝色顶栏上清晰 */
+.g-logo {
+  height: 24px;
+  width: auto;
+  margin-right: 10px;
+  background: #fff;
+  border-radius: 6px;
+  padding: 3px 7px;
+  box-shadow: 0 1px 4px rgba(0, 0, 40, 0.35);
+}
 .nav { display: flex; gap: 6px; align-items: center; }
 .nav-btn {
   border: 1px solid rgba(255, 255, 255, 0.45);
@@ -303,7 +345,7 @@ main {
 .badge.fixed { background: var(--green-bg); color: #14532d; }
 
 /* 阅读内容字号：calc(base * --fs)，字号调节不影响布局骨架 */
-.qstem { font-size: calc(15.5px * var(--fs)); line-height: 1.65; }
+.qstem { font-size: calc(18px * var(--fs)); line-height: 1.6; }
 .qstem p { margin: 0 0 10px; }
 .qstem figure { margin: 10px 0; text-align: center; }
 .qstem img, .qoptbtn img, .qopt-marked img { max-width: 100%; height: auto; }
@@ -318,8 +360,8 @@ main {
   align-items: flex-start;
   min-height: 48px;
   padding: 12px 14px;
-  font-size: calc(14.5px * var(--fs));
-  line-height: 1.55;
+  font-size: calc(16px * var(--fs));
+  line-height: 1.6;
   border: 1.5px solid var(--line);
   border-radius: 12px;
   background: #fff;
@@ -351,8 +393,8 @@ main {
   border-radius: 12px;
   border: 1.5px solid var(--line);
   margin-bottom: 8px;
-  font-size: calc(14.5px * var(--fs));
-  line-height: 1.55;
+  font-size: calc(16px * var(--fs));
+  line-height: 1.6;
   background: #fff;
 }
 .qopt-marked .lt { flex: 0 0 auto; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 700; background: #e8eefb; color: var(--pri-d); }
@@ -382,7 +424,7 @@ main {
 /* 答案面双栏骨架：移动端单列，桌面端左（题干+答案标注）右（翻译+精讲） */
 .back-grid { display: grid; grid-template-columns: 1fr; gap: 4px; }
 .back-grid > .back-col { min-width: 0; }
-.backsec .bbody { font-size: calc(14.5px * var(--fs)); line-height: 1.7; }
+.backsec .bbody { font-size: calc(16px * var(--fs)); line-height: 1.6; }
 .backsec .bbody p { margin: 0 0 8px; }
 .zho { color: #444; }
 .zho .zopt { padding: 6px 0 6px 4px; }
@@ -399,7 +441,7 @@ main {
   font-weight: 700;
   margin-bottom: 10px;
 }
-.ex-content { font-size: calc(14px * var(--fs)); line-height: 1.75; }
+.ex-content { font-size: calc(15.5px * var(--fs)); line-height: 1.6; }
 .ex-content p { margin: 0 0 8px; }
 .ex-content .ex-h { font-weight: 800; color: var(--pri-d); margin: 12px 0 6px; }
 .ex-content ul { margin: 0 0 10px; padding-left: 22px; }
@@ -604,7 +646,7 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
   .bd-card { max-width: none; width: 100%; padding: 26px 30px; }
   .stats-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
   .qface { padding: 26px 30px; }
-  .qstem { font-size: calc(16px * var(--fs)); }
+  .qstem { font-size: calc(18.5px * var(--fs)); }
   .opts { gap: 12px; }
   /* 答案面双栏：左（题干+答案标注）右（中文翻译+精讲） */
   .back-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 26px; align-items: start; }

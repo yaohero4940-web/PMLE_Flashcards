@@ -1,30 +1,31 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PMLE 闪卡 · 402 题背诵刷题</title>
-<link rel="stylesheet" href="css/style.css?v=20261114d">
+<title>PMLE Flashcards · 402 Questions</title>
+<link rel="stylesheet" href="css/style.css?v=20261114e">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">PMLE 闪卡 <span class="sub">402 题 · 中英对照精讲</span></div>
+  <!-- Google logo: Google LLC, Public domain (PD-textlogo), via Wikimedia Commons -->
+  <div class="brand"><img class="g-logo" src="assets/google-logo.svg" alt="Google logo">PMLE Flashcards <span class="sub">402 Questions · EN–ZH Explained</span></div>
   <nav class="nav">
-    <div class="fs-ctl" title="调节阅读字号（不影响布局）">
-      <button id="fs-minus" class="fs-btn" aria-label="减小字号">A−</button>
+    <div class="fs-ctl" title="Adjust reading size (layout stays intact)">
+      <button id="fs-minus" class="fs-btn" aria-label="Decrease font size">A−</button>
       <span id="fs-label" class="fs-label">100%</span>
-      <button id="fs-plus" class="fs-btn" aria-label="增大字号">A+</button>
+      <button id="fs-plus" class="fs-btn" aria-label="Increase font size">A+</button>
     </div>
-    <button data-view="home" class="nav-btn active">首页</button>
-    <button data-view="bank" class="nav-btn">题库</button>
-    <button data-view="stats" class="nav-btn">统计</button>
-    <button data-view="sync" class="nav-btn">同步<span id="sync-dot" class="sync-dot" hidden></span></button>
+    <button data-view="home" class="nav-btn active">Home</button>
+    <button data-view="bank" class="nav-btn">Bank</button>
+    <button data-view="stats" class="nav-btn">Stats</button>
+    <button data-view="sync" class="nav-btn">Sync<span id="sync-dot" class="sync-dot" hidden></span></button>
   </nav>
 </header>
 
 <main id="app">
 
-  <!-- ============ 首页 ============ -->
+  <!-- ============ Home ============ -->
   <section id="view-home" class="view">
     <div class="hero">
       <div class="hero-card">
@@ -32,9 +33,9 @@
         <div class="progress-big" id="home-progress"></div>
         <div class="review-hint" id="home-review"></div>
         <div class="home-actions">
-          <button id="btn-main-action" class="btn btn-primary btn-big">开始今日 20 题</button>
-          <button id="btn-more20" class="btn btn-gold" hidden>再来 20 题</button>
-          <button id="btn-fav-run" class="btn btn-outline">刷收藏夹</button>
+          <button id="btn-main-action" class="btn btn-primary btn-big">Start today's 20</button>
+          <button id="btn-more20" class="btn btn-gold" hidden>20 more questions</button>
+          <button id="btn-fav-run" class="btn btn-outline">Review bookmarks</button>
         </div>
         <div class="home-meta" id="home-meta"></div>
       </div>
@@ -42,109 +43,111 @@
 
     <div class="home-grid">
       <div class="panel">
-        <h3>打卡日历</h3>
+        <h3>Check-in calendar</h3>
         <div id="heatmap" class="heatmap"></div>
         <div class="streak-line" id="streak-line"></div>
       </div>
       <div class="panel">
-        <h3>总览</h3>
+        <h3>Overview</h3>
         <div id="home-stats" class="stat-list"></div>
       </div>
     </div>
   </section>
 
-  <!-- ============ 答题页 ============ -->
+  <!-- ============ Quiz ============ -->
   <section id="view-quiz" class="view" hidden>
     <div class="quiz-top">
-      <button id="quiz-exit" class="btn btn-ghost btn-small">← 退出</button>
+      <button id="quiz-exit" class="btn btn-ghost btn-small">← Exit</button>
       <div class="session-info">
         <span id="quiz-mode-label"></span>
         <span id="quiz-count"></span>
       </div>
-      <button id="btn-fav-toggle" class="fav-star" title="收藏本题">☆</button>
+      <button id="btn-fav-toggle" class="fav-star" title="Bookmark this question">☆</button>
     </div>
     <div class="progress-track"><div id="quiz-progress" class="progress-bar"></div></div>
 
     <div id="quiz-area"></div>
   </section>
 
-  <!-- ============ 结算页 ============ -->
+  <!-- ============ Result ============ -->
   <section id="view-result" class="view" hidden>
     <div class="result-card">
-      <h2 id="result-title">今日战报</h2>
+      <h2 id="result-title">Session recap</h2>
       <div id="result-body" class="result-body"></div>
       <div class="home-actions">
-        <button id="btn-result-more20" class="btn btn-gold" hidden>再来 20 题</button>
-        <button id="btn-result-home" class="btn btn-primary">回到首页</button>
+        <button id="btn-result-more20" class="btn btn-gold" hidden>20 more questions</button>
+        <button id="btn-result-home" class="btn btn-primary">Back home</button>
       </div>
     </div>
   </section>
 
-  <!-- ============ 题库页 ============ -->
+  <!-- ============ Bank ============ -->
   <section id="view-bank" class="view" hidden>
     <div class="bank-tools">
-      <input id="bank-search" type="search" placeholder="搜索题干 / 选项 / 标签…">
+      <input id="bank-search" type="search" placeholder="Search stem / options / tags…">
       <div class="bank-filters" id="bank-filters">
-        <button data-filter="all" class="chip active">全部</button>
-        <button data-filter="unseen" class="chip">未做过</button>
-        <button data-filter="weak" class="chip">未掌握</button>
-        <button data-filter="due" class="chip">待复习</button>
-        <button data-filter="fav" class="chip">收藏</button>
-        <button data-filter="new" class="chip">402 新题</button>
-        <button data-filter="img" class="chip">含图</button>
+        <button data-filter="all" class="chip active">All</button>
+        <button data-filter="unseen" class="chip">Unseen</button>
+        <button data-filter="weak" class="chip">Weak</button>
+        <button data-filter="due" class="chip">Due</button>
+        <button data-filter="fav" class="chip">Bookmarked</button>
+        <button data-filter="new" class="chip">New (402)</button>
+        <button data-filter="img" class="chip">With images</button>
       </div>
       <div class="bank-io">
-        <button id="btn-export" class="btn btn-outline btn-small">导出进度</button>
-        <button id="btn-import" class="btn btn-outline btn-small">导入进度</button>
+        <button id="btn-export" class="btn btn-outline btn-small">Export progress</button>
+        <button id="btn-import" class="btn btn-outline btn-small">Import progress</button>
         <input id="import-file" type="file" accept="application/json" hidden>
       </div>
     </div>
     <div id="bank-list" class="bank-list"></div>
   </section>
 
-  <!-- ============ 统计页 ============ -->
+  <!-- ============ Stats ============ -->
   <section id="view-stats" class="view" hidden>
     <div id="stats-body"></div>
   </section>
 
-  <!-- ============ 同步页 ============ -->
+  <!-- ============ Sync ============ -->
   <section id="view-sync" class="view" hidden>
     <div class="panel sync-panel">
-      <h3>跨设备同步 <span id="sync-badge" class="sync-badge off">未连接</span></h3>
+      <h3>Cross-device sync <span id="sync-badge" class="sync-badge off">Not connected</span></h3>
       <p class="sync-desc">
-        用你的 GitHub 账号做一份私密云端存档。手机、电脑、不同浏览器粘贴同一个令牌后，
-        进度（掌握状态、错题、收藏、每日记录、断点）自动合并，换设备接着刷。
+        Keep a private cloud archive under your GitHub account. Paste the same token on your phone,
+        computer and different browsers, and your progress (mastery, misses, bookmarks, daily
+        records, breakpoints) merges automatically — switch devices and keep going.
       </p>
 
-      <div id="sync-state" class="sync-state">尚未连接。填入令牌后点击「连接并同步」。</div>
+      <div id="sync-state" class="sync-state">Not connected. Paste your token and click "Connect &amp; sync".</div>
 
-      <label class="sync-label" for="sync-token">GitHub 令牌（只保存在本机浏览器）</label>
+      <label class="sync-label" for="sync-token">GitHub token (stored only in this browser)</label>
       <div class="sync-input-row">
-        <input id="sync-token" type="password" placeholder="ghp_…（classic 令牌，需勾选 gist）" autocomplete="off" spellcheck="false">
-        <button id="btn-sync-connect" class="btn btn-primary">连接并同步</button>
+        <input id="sync-token" type="password" placeholder="ghp_… (classic token, gist scope)" autocomplete="off" spellcheck="false">
+        <button id="btn-sync-connect" class="btn btn-primary">Connect &amp; sync</button>
       </div>
 
       <div class="sync-actions">
-        <button id="btn-sync-now" class="btn btn-outline">立即同步</button>
-        <button id="btn-sync-disconnect" class="btn btn-ghost">断开本机</button>
+        <button id="btn-sync-now" class="btn btn-outline">Sync now</button>
+        <button id="btn-sync-disconnect" class="btn btn-ghost">Disconnect this device</button>
       </div>
 
       <label class="sync-check">
         <input type="checkbox" id="sync-auto" checked>
-        自动同步（作答后自动上传，切回页面时自动拉取最新进度）
+        Auto sync (upload after each answer; pull the latest when you switch back to this page)
       </label>
 
       <details class="sync-help">
-        <summary>怎么生成令牌？（约 30 秒，只需一次）</summary>
+        <summary>How do I create a token? (~30 seconds, one-time)</summary>
         <ol>
-          <li>打开 <code>github.com/settings/tokens</code> → <b>Generate new token (classic)</b></li>
-          <li>Note 随便填（如 <code>pmle-sync</code>），Expiration 建议 90 天</li>
-          <li>权限只勾选 <b>gist</b> 一项，其它全部不勾</li>
-          <li>点 Generate，复制 <code>ghp_</code> 开头的字符串，粘贴到上面输入框</li>
+          <li>Open <code>github.com/settings/tokens</code> → <b>Generate new token (classic)</b></li>
+          <li>Note: anything (e.g. <code>pmle-sync</code>); Expiration: 90 days recommended</li>
+          <li>Scope: check <b>gist</b> only — leave everything else unchecked</li>
+          <li>Click Generate, copy the <code>ghp_</code> string and paste it above</li>
         </ol>
         <p class="sync-warn">
-          令牌仅存于本机 localStorage，只用于读写你自己的私密 Gist；本页面不引入任何第三方统计脚本。
-          若担心泄露，可设 90 天过期，到期重新生成并重新连接即可，云端进度不会丢。
+          The token lives only in this browser's localStorage and is used solely to read/write your own
+          private Gist; this page loads no third-party analytics. If you worry about leaks, set a 90-day
+          expiration — regenerate and reconnect when it expires; your cloud progress stays intact.
         </p>
       </details>
     </div>
@@ -154,8 +157,8 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="data/questions.js?v=20261114d"></script>
-<script src="js/sync-merge.js?v=20261114d"></script>
-<script src="js/app.js?v=20261114d"></script>
+<script src="data/questions.js?v=20261114e"></script>
+<script src="js/sync-merge.js?v=20261114e"></script>
+<script src="js/app.js?v=20261114e"></script>
 </body>
 </html>
