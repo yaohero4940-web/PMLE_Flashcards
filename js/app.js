@@ -1085,6 +1085,7 @@ const sync = {
   lastSync: 0,
   pulledAt: 0, // 本会话成功拉取云端状态的时间；为 0 时禁止上传，避免旧数据覆盖云端
   lastError: "",
+  remoteInfo: null, // 最近一次同步时云端存档的快照 {cards, favs, updatedAt}；null 表示云端尚无存档
 };
 try {
   sync.token = localStorage.getItem(SYNC_TOKEN_KEY) || "";
@@ -1217,6 +1218,13 @@ async function syncNow(opts) {
   try {
     const g = await locateGist();
     const remote = g ? await readGistState(g) : null;
+    sync.remoteInfo = remote
+      ? {
+          cards: Object.keys(remote.cards || {}).length,
+          favs: Object.values(remote.cards || {}).filter((c) => c && c.fav).length,
+          updatedAt: Number(remote.updatedAt) || 0,
+        }
+      : null;
     sync.pulledAt = Date.now();
     const merger = window.PMLE_MERGE && window.PMLE_MERGE.mergeStates;
     const merged = remote && merger ? merger(S, remote) : S;
@@ -1302,9 +1310,18 @@ function renderSyncView() {
   } else {
     st.className = "sync-state ok";
     const counts = `本机进度：做过 ${Object.keys(S.cards).length} 题 · 收藏 ${favNums().length} 题`;
+    const ri = sync.remoteInfo;
+    const cloudLine = ri
+      ? `云端存档：做过 ${ri.cards} 题 · 收藏 ${ri.favs} 题${
+          ri.updatedAt ? ` · 云端更新于 ${fmtSyncTime(ri.updatedAt)}` : ""
+        }`
+      : "云端存档：连接前云端为空，已用本机进度建立存档";
+    const gistLink = sync.gistId
+      ? ` · <a href="https://gist.github.com/${esc(sync.gistId)}" target="_blank" rel="noopener">打开云端存档核对</a>`
+      : "";
     st.innerHTML = `已连接${sync.gistId ? ` · 存档 <code>${esc(sync.gistId.slice(0, 8))}</code>` : ""}${
       sync.lastSync ? ` · 上次同步 ${fmtSyncTime(sync.lastSync)}` : ""
-    }<br>${counts}`;
+    }${gistLink}<br>${counts}<br>${cloudLine}`;
   }
 
   const input = $("#sync-token");
