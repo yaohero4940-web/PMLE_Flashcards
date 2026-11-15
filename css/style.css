@@ -87,14 +87,40 @@ button { font-family: inherit; }
   font-weight: 700;
   font-size: 27px;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.brand .sub { font-weight: 400; font-size: 15px; opacity: 0.85; margin-left: 12px; color: #dbe4ff; -webkit-text-fill-color: currentColor; }
+.brand { display: flex; align-items: center; }
+.brand-id { display: flex; flex-direction: column; justify-content: center; line-height: 1.16; }
+.brand-name {
   background: linear-gradient(90deg, #ffffff, #bcd0ff);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  white-space: nowrap;
 }
-.brand .sub { font-weight: 400; font-size: 15px; opacity: 0.85; margin-left: 12px; }
-.brand { display: flex; align-items: center; }
+/* GMT+8 数字时钟（贴在品牌标题上方） */
+.clock {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #9fd0ff;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 2px;
+}
+.clock-tz {
+  font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
 /* Google 徽标（公有领域 PD-textlogo；商标归 Google LLC）：透明 SVG 直接叠在深蓝顶栏上，顶栏正中独立居中 */
 .g-logo {
   position: absolute;
@@ -663,6 +689,7 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
   .home-grid { grid-template-columns: 1fr; }
   .brand .sub { display: none; }
   .brand { font-size: 20px; }
+  .clock { font-size: 15px; }
   .nav-btn { padding: 9px 13px; font-size: 15px; min-height: 48px; }
   .fs-ctl { padding: 1px 3px; }
   .fs-btn { min-width: 38px; min-height: 38px; font-size: 16px; }

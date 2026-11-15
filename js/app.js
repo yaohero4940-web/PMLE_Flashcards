@@ -1607,10 +1607,29 @@ function rolloverCheck() {
   }
 }
 
+/* ---------- GMT+8 数字时钟（顶栏左上，品牌标题上方） ---------- */
+function tickClock() {
+  const el = $("#clock-time");
+  if (!el) return;
+  // 用 UTC 毫秒 +8 小时再取 UTC 字段，结果与浏览器本地时区无关
+  const t = new Date(Date.now() + 8 * 3600 * 1000);
+  const p = (n) => String(n).padStart(2, "0");
+  el.textContent = `${p(t.getUTCHours())}:${p(t.getUTCMinutes())}:${p(t.getUTCSeconds())}`;
+}
+function startClock() {
+  tickClock();
+  // 对齐到整秒再走秒针，避免显示跳秒
+  setTimeout(() => {
+    tickClock();
+    setInterval(tickClock, 1000);
+  }, 1000 - new Date().getMilliseconds());
+}
+
 /* ---------- 启动 ---------- */
 $("#fs-minus").addEventListener("click", () => fsChange(-1));
 $("#fs-plus").addEventListener("click", () => fsChange(1));
 applyFs();
+startClock();
 rolloverCheck();
 migrateCorrections();
 ensureDay();
