@@ -140,6 +140,18 @@ function migrateSeenFlags() {
     }
     if (c.seen && !c.shown) c.shown = 1; // 答过的题一定展示过
   });
+  // 补标记：当前会话里已经翻到过的题（跳过 / 未答的也算看过），
+  // 以及暂停中的收藏夹/错题本会话，避免它们下次又被当成新题发出来
+  [S.session, S.dailyBackup].forEach((sess) => {
+    if (!sess || !sess.queue) return;
+    sess.queue.slice(0, sess.pos || 0).forEach((n) => {
+      const c = card(n);
+      if (!c.shown) {
+        c.shown = 1;
+        fixed++;
+      }
+    });
+  });
   if (fixed) persist();
   return fixed;
 }
