@@ -122,6 +122,27 @@ function migrateCorrections() {
   persist();
   if (touched) toast(`Reset stale records for ${touched} corrected question(s)`);
 }
+/* 历史数据修复：早期版本的记录可能丢了 seen 标记（跨设备合并曾被收藏记录覆盖），
+ * 但有作答痕迹（掌握层级 / 到期时间 / 错答次数）就说明确实做过 → 补回 seen，避免被当成新题。 */
+function migrateSeenFlags() {
+  let fixed = 0;
+  Object.keys(S.cards).forEach((n) => {
+    const c = S.cards[n];
+    if (!c) return;
+    const answered =
+      c.lv > 0 ||
+      c.wrongTotal > 0 ||
+      c.due > 0 ||
+      !!(c.wrongByDay && Object.keys(c.wrongByDay).length);
+    if (answered && !c.seen) {
+      c.seen = 1;
+      fixed++;
+    }
+    if (c.seen && !c.shown) c.shown = 1; // 答过的题一定展示过
+  });
+  if (fixed) persist();
+  return fixed;
+}
 function card(num) {
   if (!S.cards[num])
     S.cards[num] = {
@@ -131,6 +152,8 @@ function card(num) {
       wrongByDay: {},
       fav: 0,
       mb: 0, // 错题本标记：手动加入，需重点攻克
+      seen: 0, // 作答过（区别于只收藏/只建错题本）
+      shown: 0, // 在答题页出现过（跳过也算），用于「+20 只给没看过的题」
       lastAt: 0,
     };
   return S.cards[num];
@@ -187,11 +210,17 @@ function reviewDueNums() {
   const now = Date.now();
   return BANK.filter((q) => {
     const c = S.cards[q.num];
-    return c && c.due > 0 && c.due <= now;
+    if (!c) return false;
+    if (c.due > 0 && c.due <= now) return true;
+    // 「看过但没作答」的题（跳过 / 中途退出）：不当新题再发一次，统一从复习队列回来
+    return !!c.shown && !isAttempted(q.num);
   }).map((q) => q.num);
 }
+/* 新题池：从未「展示过」也从未作答过的题（严格按题号从小到大） */
 function unseenNums() {
-  return BANK.filter((q) => !isAttempted(q.num)).map((q) => q.num);
+  return BANK.filter((q) => !isAttempted(q.num) && !isShown(q.num)).map(
+    (q) => q.num
+  );
 }
 /* 「做过」的判定：不能只看 cards 里有没有键——只收藏 / 只加错题本也会建档，
  * 那样会把没做过的题误算成已做过，从新题池里消失。 */
@@ -201,6 +230,11 @@ function isAttempted(num) {
   if (c.seen) return true;
   if (c.lv > 0 || c.wrongTotal > 0 || c.due > 0) return true;
   return !!(c.wrongByDay && Object.keys(c.wrongByDay).length);
+}
+/* 「展示过」：题干/选项已在答题页出现过（哪怕跳过没答）。
+ * 用户要求 +20 只给「从来没看过」的题，所以这类题不进新题池。 */
+function isShown(num) {
+  return !!(S.cards[num] && S.cards[num].shown);
 }
 function attemptedCount() {
   return Object.keys(S.cards).filter((n) => isAttempted(Number(n))).length;
@@ -406,12 +440,27 @@ function addTwentyMore() {
     .filter((n) => !queued.has(n))
     .slice(0, 20);
   if (!fresh.length) return toast("No more new questions to add 🎉");
+  const span =
+    fresh.length === 1
+      ? `Q${fresh[0]}`
+      : fresh[fresh.length - 1] - fresh[0] === fresh.length - 1
+        ? `Q${fresh[0]}–Q${fresh[fresh.length - 1]}`
+        : `Q${fresh[0]} … Q${fresh[fresh.length - 1]}`;
+  const addMsg = `Added ${fresh.length} new question${
+    fresh.length === 1 ? "" : "s"
+  } · ${span}`;
 
   if (sess && sess.mode === "daily") {
     sess.queue.push(...fresh);
     sess.total += fresh.length;
     day.planned += fresh.length;
-    toast(`Added ${fresh.length} new question${fresh.length === 1 ? "" : "s"}`);
+    // 队列前面若还有到期的复习题，先说明一下，避免把「复习旧题」当成又发了老题
+    const reviewAhead = sess.queue
+      .slice(sess.pos, sess.queue.length - fresh.length)
+      .filter((n) => isAttempted(n)).length;
+    toast(
+      addMsg + (reviewAhead ? ` · ${reviewAhead} review card${reviewAhead > 1 ? "s" : ""} first` : "")
+    );
     persist();
     show("quiz");
     renderCurrent();
@@ -431,6 +480,7 @@ function addTwentyMore() {
     };
     S.dailyBackup = null;
     persist();
+    toast(addMsg);
     show("quiz");
     renderCurrent();
   }
@@ -519,6 +569,12 @@ function renderCurrent() {
     return;
   }
   const firstTouch = !isAttempted(item.num);
+  // 记下「这道题已经展示过」：跳过、中途退出都不算新题，避免 +20 反复发同一批
+  const cc = card(item.num);
+  if (!cc.shown) {
+    cc.shown = 1;
+    persist();
+  }
   cur = {
     num: item.num,
     fromQueue: !!item.fromQueue,
@@ -978,7 +1034,11 @@ let bankSearch = "";
 
 function statusOf(num) {
   const c = S.cards[num];
-  if (!isAttempted(num)) return { txt: "Unseen", cls: "new" };
+  if (!isAttempted(num)) {
+    // 展示过但没作答（跳过 / 中途退出）：保留在复习队列，不占新题额度
+    if (isShown(num)) return { txt: "Not answered", cls: "lv1" };
+    return { txt: "Unseen", cls: "new" };
+  }
   if (c.lv >= 3) return { txt: "Mastered", cls: "lv3" };
   if (c.lv >= 1) return { txt: "Reviewing", cls: "lv2" };
   if (c.wrongTotal > 0) return { txt: "Weak", cls: "weak" };
@@ -992,7 +1052,7 @@ function renderBank() {
     const c = S.cards[q.num];
     switch (bankFilter) {
       case "unseen":
-        return !isAttempted(q.num);
+        return !isAttempted(q.num) && !isShown(q.num);
       case "weak":
         return c && c.lv === 0 && c.wrongTotal > 0;
       case "due":
@@ -1632,6 +1692,7 @@ applyFs();
 startClock();
 rolloverCheck();
 migrateCorrections();
+migrateSeenFlags();
 ensureDay();
 renderHome();
 renderSyncView();

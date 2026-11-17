@@ -42,6 +42,11 @@
     out.lastAt = Math.max(num(a.lastAt), num(b.lastAt));
     out.wrongTotal = Math.max(num(a.wrongTotal), num(b.wrongTotal));
     out.wrongByDay = mergeWrongByDay(a.wrongByDay, b.wrongByDay);
+    // 「作答过 / 展示过」是单向事实，只会从 0 变 1，取并集。
+    // 否则在另一台设备点了收藏（记录较新但没有 seen）会把它覆盖回「没做过」，
+    // 结果 +20 又把已经做过的题发一遍。
+    out.seen = num(a.seen) || num(b.seen) ? 1 : 0;
+    out.shown = num(a.shown) || num(b.shown) ? 1 : 0;
     // 若较旧的一份记录了「今天已掌握」的降级状态，保留较高的 due 以免复习被提前
     if (num(other.due) > out.due && num(base.lv) >= num(other.lv)) out.due = num(other.due);
     return out;
