@@ -80,6 +80,7 @@ function defaultState() {
     streakLast: "",
     streakCount: 0,
     corrVer: 0, // 答案修正版本号：升级后重置相关题目的旧判题记录
+    readAt: 0, // 顺序看题的书签：最后停在的题号
     updatedAt: 0, // 整体更新时间，用于跨设备合并时判断哪份更新
   };
 }
@@ -1043,6 +1044,7 @@ document.addEventListener("keydown", (e) => {
 /* ---------- 题库页 ---------- */
 let bankFilter = "all";
 let bankSearch = "";
+let bankList = []; // 当前筛选/搜索后的题号顺序（顺序看题按这个顺序往后翻）
 
 function statusOf(num) {
   const c = S.cards[num];
@@ -1094,17 +1096,20 @@ function renderBank() {
   });
 
   if (!items.length) {
+    bankList = [];
     list.innerHTML = '<div class="panel">No questions match this filter.</div>';
     return;
   }
+  bankList = items.map((q) => q.num);
   list.innerHTML = items
     .map((q) => {
       const st = statusOf(q.num);
       const c = S.cards[q.num];
-      return `<div class="bank-item" data-num="${q.num}">
+      return `<div class="bank-item${S.readAt === q.num ? " reading" : ""}" data-num="${q.num}">
         <div class="bi-top">
           <span class="bi-num">Q${q.num}</span>
           <span class="bi-status ${st.cls}">${st.txt}</span>
+          ${S.readAt === q.num ? '<span class="bi-status reading">Reading here</span>' : ""}
           ${q.isNew ? '<span class="bi-status new">New</span>' : ""}
           ${q.multi ? '<span class="bi-status" style="background:#efe7ff;color:#5b3f9e">Multi</span>' : ""}
           ${c && c.fav ? '<span class="bi-fav">★</span>' : ""}
@@ -1133,13 +1138,76 @@ function renderBank() {
       renderBank();
     });
   });
+  updateReadBtn();
 }
 
+/* 题库工具栏的「继续顺序看题」按钮：优先从上一次停下的题继续 */
+function updateReadBtn() {
+  const btn = $("#btn-read-seq");
+  if (!btn) return;
+  const unseen = unseenNums();
+  const start =
+    S.readAt && byNum[S.readAt]
+      ? S.readAt
+      : unseen.length
+        ? unseen[0]
+        : BANK[0].num;
+  btn.dataset.start = start;
+  btn.textContent = S.readAt
+    ? `Continue reading · Q${start}`
+    : unseen.length && unseen[0] !== BANK[0].num
+      ? `Read in order · from Q${start}`
+      : "Read in order";
+}
+
+/* ---------- 顺序看题（阅读器） ----------
+ * 从题库任意一题点进去，就按当前列表顺序一路往后翻（题干 + 答案 + 中英精讲）。
+ * 纯阅读：不改掌握等级 / 错题次数 / 每日额度，也不写「展示过」标记，
+ * 所以随手往后翻不会把没做的题算成做过，每日 20 题和 +20 依然能发到它们。 */
+const reader = { nums: [], idx: 0 };
+
+function readerOrder(num) {
+  // 题库页进来：沿用当前筛选（比如 Unseen）的顺序；统计页等其它入口：按全库题号顺序
+  if (currentView === "bank" && bankList.length && bankList.includes(num))
+    return bankList.slice();
+  return BANK.map((q) => q.num);
+}
+
+/* 兼容旧入口：题库列表行、统计页弱项清单都走这里 */
 function openBankDetail(num) {
+  const nums = readerOrder(num);
+  const idx = nums.indexOf(num);
+  reader.nums = idx >= 0 ? nums : BANK.map((q) => q.num);
+  reader.idx = idx >= 0 ? idx : Math.max(0, reader.nums.indexOf(num));
+  renderReader();
+}
+
+function closeReader() {
   document.querySelector(".bank-detail")?.remove();
+  document.body.classList.remove("reader-open");
+  if (currentView === "bank") renderBank(); // 同步「Reading here」标记
+}
+
+function readerStep(delta) {
+  const next = reader.idx + delta;
+  if (next < 0 || next >= reader.nums.length) return;
+  reader.idx = next;
+  renderReader();
+}
+
+function renderReader(keepScroll) {
+  const num = reader.nums[reader.idx];
   const q = byNum[num];
-  const c = card(num);
+  if (!q) return closeReader();
+  const c = S.cards[num] || { fav: 0, mb: 0, lv: 0 };
   const st = statusOf(num);
+  const total = reader.nums.length;
+
+  if (S.readAt !== num) {
+    S.readAt = num;
+    persist({ noSync: true }); // 只记本机书签，不触发上传
+  }
+
   const marked = q.opts
     .map((o) => {
       const isAns = q.answer.includes(o.letter);
@@ -1153,18 +1221,32 @@ function openBankDetail(num) {
   const zhOpts = (q.zh && q.zh.opts ? q.zh.opts : [])
     .map((o) => `<p class="zopt"><span class="zlt">${o.letter}.</span>${o.html}</p>`)
     .join("");
-  const overlay = document.createElement("div");
-  overlay.className = "bank-detail";
-  overlay.innerHTML = `
+
+  let ov = document.querySelector(".bank-detail");
+  const prevScroll = ov ? ov.scrollTop : 0;
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.className = "bank-detail";
+    document.body.appendChild(ov);
+    document.body.classList.add("reader-open");
+    ov.onclick = (e) => {
+      if (e.target === ov) closeReader();
+    };
+  }
+
+  ov.innerHTML = `
     <div class="bd-card">
-      <button class="bd-close">✕</button>
-      <div class="qnum-line">
+      <button class="bd-close" aria-label="Close">✕</button>
+      <div class="bd-head">
         <span class="qnum">QUESTION ${q.num}</span>
         <span class="bi-status ${st.cls}">${st.txt}</span>
         ${q.isNew ? '<span class="bi-status new">New (402)</span>' : ""}
         ${q.fixed ? '<span class="bi-status fixed">Answer corrected</span>' : ""}
         ${q.multi ? '<span class="bi-status" style="background:#efe7ff;color:#5b3f9e">Multi</span>' : ""}
+        ${c.fav ? '<span class="bi-fav">★</span>' : ""}
+        <span class="bd-pos">${reader.idx + 1} of ${total}</span>
       </div>
+      <div class="bd-note">Reading only — doesn't count as practice, so this question stays in your new-question pool.</div>
       <div class="back-grid">
         <div class="back-col">
           <div class="qstem">${q.stem}</div>
@@ -1192,30 +1274,51 @@ function openBankDetail(num) {
         <button class="btn ${c.mb ? "btn-mb-on" : "btn-outline"}" id="bd-mb">${c.mb ? "⚑ In mistake book" : "⚐ Add to mistake book"}</button>
         <button class="btn ${c.fav ? "btn-gold" : "btn-outline"}" id="bd-fav"><span class="bigstar">${c.fav ? "★" : "☆"}</span> ${c.fav ? "Bookmarked" : "Bookmark"}</button>
       </div>
+    </div>
+    <div class="bd-nav">
+      <button class="btn btn-outline btn-nav" id="bd-prev" ${reader.idx === 0 ? "disabled" : ""}>← Prev</button>
+      <div class="bd-nav-mid">
+        <b>Q${q.num}</b> · ${reader.idx + 1} / ${total}
+        <span class="bd-hint">← → to page · Esc to close</span>
+      </div>
+      <button class="btn btn-primary btn-nav" id="bd-next" ${reader.idx === total - 1 ? "disabled" : ""}>Next →</button>
     </div>`;
-  document.body.appendChild(overlay);
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
-  overlay.querySelector(".bd-close").addEventListener("click", () => overlay.remove());
-  overlay.querySelector("#bd-mb").addEventListener("click", () => {
-    c.mb = c.mb ? 0 : 1;
-    c.lastAt = Date.now();
+  ov.scrollTop = keepScroll ? prevScroll : 0;
+
+  ov.querySelector(".bd-close").addEventListener("click", closeReader);
+  ov.querySelector("#bd-prev").addEventListener("click", () => readerStep(-1));
+  ov.querySelector("#bd-next").addEventListener("click", () => readerStep(1));
+  ov.querySelector("#bd-mb").addEventListener("click", () => {
+    const cc = card(num);
+    cc.mb = cc.mb ? 0 : 1;
+    cc.lastAt = Date.now();
     persist();
-    renderBank();
-    overlay.remove();
-    openBankDetail(num);
-    toast(c.mb ? "Added to mistake book ⚑" : "Removed from mistake book");
+    toast(cc.mb ? "Added to mistake book ⚑" : "Removed from mistake book");
+    renderReader(true);
   });
-  overlay.querySelector("#bd-fav").addEventListener("click", () => {
-    c.fav = c.fav ? 0 : 1;
-    c.lastAt = Date.now();
+  ov.querySelector("#bd-fav").addEventListener("click", () => {
+    const cc = card(num);
+    cc.fav = cc.fav ? 0 : 1;
+    cc.lastAt = Date.now();
     persist();
-    renderBank();
-    overlay.remove();
-    openBankDetail(num);
+    renderReader(true);
   });
 }
+
+/* 阅读器键盘：← 上一题 / → 下一题 / Esc 关闭 */
+document.addEventListener("keydown", (e) => {
+  if (!document.querySelector(".bank-detail")) return;
+  if (e.key === "Escape") {
+    e.preventDefault();
+    closeReader();
+  } else if (e.key === "ArrowRight" || e.key === "PageDown") {
+    e.preventDefault();
+    readerStep(1);
+  } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+    e.preventDefault();
+    readerStep(-1);
+  }
+});
 
 $("#bank-search").addEventListener("input", (e) => {
   bankSearch = e.target.value.trim();
@@ -1230,6 +1333,11 @@ document.querySelectorAll("#bank-filters .chip").forEach((b) => {
     bankFilter = b.dataset.filter;
     renderBank();
   });
+});
+/* 顺序看题：从上次停下的题继续（没有书签就从第一道没看过的题开始） */
+$("#btn-read-seq").addEventListener("click", () => {
+  const start = Number($("#btn-read-seq").dataset.start) || BANK[0].num;
+  openBankDetail(start);
 });
 
 /* ---------- 导入导出 ---------- */

@@ -591,7 +591,7 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
   color: #fff;
   font-weight: 600;
 }
-.bank-io { display: flex; gap: 8px; }
+.bank-io { display: flex; flex-wrap: wrap; gap: 8px; }
 .bank-list { display: grid; gap: 8px; }
 .bank-item {
   background: var(--card);
@@ -612,9 +612,12 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
 .bi-status.lv3 { background: #d7ecdf; color: #14532d; }
 .bi-status.weak { background: var(--red-bg); color: var(--red-wrong); }
 .bi-status.fixed { background: var(--green-bg); color: #14532d; }
+.bi-status.reading { background: #fdf3d7; color: #8a6d1a; font-weight: 600; }
 .bi-fav { color: var(--gold); font-size: 20px; line-height: 1; text-shadow: 0 1px 3px rgba(232, 176, 75, 0.5); }
+/* 顺序看题停在这里的那一行 */
+.bank-item.reading { border-color: var(--gold); box-shadow: inset 3px 0 0 var(--gold); }
 
-/* 展开的题目详情 */
+/* 展开的题目详情 / 顺序看题阅读器 */
 .bank-detail {
   position: fixed;
   inset: 0;
@@ -623,9 +626,10 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 20px 12px;
+  padding: 20px 12px 104px;
   overflow-y: auto;
 }
+body.reader-open { overflow: hidden; }
 .bd-card {
   background: var(--card);
   border-radius: var(--radius);
@@ -640,6 +644,23 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
   background: none; border: none; font-size: 22px; color: var(--ink-2);
   min-width: 44px; min-height: 44px; cursor: pointer;
 }
+/* 阅读器头部：题号 + 状态 + 进度 */
+.bd-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-right: 46px; margin-bottom: 12px; }
+.bd-pos { margin-left: auto; font-size: 12.5px; color: var(--ink-2); }
+.bd-note { font-size: 12.5px; color: var(--ink-2); margin: -4px 0 12px; }
+/* 底部翻页栏（常驻，长解析也不用滚到底） */
+.bd-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 31;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -6px 20px rgba(10, 16, 48, 0.14);
+}
+.bd-nav .btn-nav { min-width: 104px; }
+.bd-nav-mid { text-align: center; font-size: 13px; color: var(--ink-2); line-height: 1.35; }
+.bd-nav-mid b { color: var(--pri-d); font-size: 15px; }
+.bd-hint { display: block; font-size: 11.5px; opacity: 0.7; }
 
 /* ---------- 统计页 ---------- */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
@@ -718,6 +739,13 @@ details.pdf-expl summary { cursor: pointer; font-size: 13px; color: var(--ink-2)
   .fav-star { font-size: 30px; min-width: 38px; min-height: 38px; margin: 0; }
   .mb-star { font-size: 26px; min-width: 36px; min-height: 36px; }
   .session-info { gap: 6px; font-size: 12px; }
+  /* 阅读器：底部翻页栏在手机上横向铺满，读长解析也能随时翻页 */
+  .bank-detail { padding: 12px 8px 96px; }
+  .bd-nav { gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+  .bd-nav .btn-nav { flex: 1; min-width: 0; padding: 11px 8px; font-size: 16px; }
+  .bd-nav-mid { min-width: 78px; font-size: 12px; }
+  .bd-hint { display: none; }
+  .bd-pos { font-size: 12px; }
 }
 
 /* ---------- 大屏：全屏铺开 + 纵向占满 ---------- */
