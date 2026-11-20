@@ -77,6 +77,7 @@ function defaultState() {
     days: {}, // day -> {planned, done, correct, wrong, act}
     session: null,
     dailyBackup: null, // 每日任务被收藏夹会话临时顶替时的备份
+    mbPass: null, // 错题本「一轮」的独立断点：{nums:[题号], pos, done, date, startedAt}
     streakLast: "",
     streakCount: 0,
     corrVer: 0, // 答案修正版本号：升级后重置相关题目的旧判题记录
@@ -93,7 +94,17 @@ function loadState() {
   }
   return defaultState();
 }
+/* 错题本断点：把当前错题本会话已经走到哪一题，回写到独立的一轮记录里。
+ * 单一 session 槽位随时可能被每日任务 / 收藏夹 / +20 顶替，跨天也会失效，
+ * 所以每次保存前都同步一份，保证「退出后再进来」不是从头开始。 */
+function syncMbPass() {
+  const s = S.session;
+  const p = S.mbPass;
+  if (!p || !s || s.mode !== "mb" || p.done) return;
+  p.pos = Math.max(Number(p.pos) || 0, (Number(s.basePos) || 0) + (Number(s.pos) || 0));
+}
 function persist(opts) {
+  syncMbPass();
   S.updatedAt = Date.now();
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(S));
@@ -313,11 +324,19 @@ function renderHome() {
     ? `+20 new questions · ${unseenLeft} unseen`
     : "All 402 seen 🎉";
 
-  /* 错题本入口 */
+  /* 错题本入口：有没刷完的一轮就显示「续看 · 还剩几题」 */
   const mbCount = mbNums().length;
-  $("#btn-mb-run").textContent = mbCount
-    ? `Review mistake book (${mbCount})`
-    : "Review mistake book";
+  const mbLeft =
+    S.mbPass && !S.mbPass.done && Array.isArray(S.mbPass.nums)
+      ? Math.max(0, S.mbPass.nums.length - (Number(S.mbPass.pos) || 0))
+      : 0;
+  const mbBtn = $("#btn-mb-run");
+  mbBtn.textContent = mbLeft
+    ? `Resume mistake book · ${mbLeft} left`
+    : mbCount
+      ? `Review mistake book (${mbCount})`
+      : "Review mistake book";
+  mbBtn.classList.toggle("resume", mbLeft > 0);
 
   const due = reviewDueNums();
   const yk = todayKey(new Date(Date.now() - DAY));
@@ -397,6 +416,7 @@ function renderHeatmap() {
 function startDailySession() {
   const t = todayKey();
   const day = ensureDay();
+  syncMbPass(); // 过期的错题本会话即将被替换，先收好断点
   const sess = activeSession();
   if (sess) {
     show("quiz");
@@ -432,6 +452,7 @@ function startDailySession() {
 function addTwentyMore() {
   const t = todayKey();
   const day = ensureDay();
+  syncMbPass(); // +20 会收起错题本会话，断点先落到 mbPass，下次不再从头开始
   // 若当前是收藏夹 / 错题本会话，先把它收起并还原之前暂停的每日会话
   // （收藏与错题本清单本身是持久保存的，随时可以重新开始，不会丢）
   let sess = activeSession();
@@ -499,9 +520,11 @@ function addTwentyMore() {
   }
 }
 
-/* 收藏夹 / 错题本共用同一套“清单会话”逻辑 */
-function startListSession(mode, nums, emptyMsg) {
+/* 收藏夹 / 错题本共用同一套“清单会话”逻辑
+ * basePos：错题本续看时，queue 只是本轮剩余部分，记录它在整轮 nums 里的起点 */
+function startListSession(mode, nums, emptyMsg, basePos) {
   if (!nums.length) return toast(emptyMsg);
+  syncMbPass(); // 替换会话前，先把上一个错题本会话的断点收进来
   const sess = activeSession();
   if (sess && sess.mode === "daily") S.dailyBackup = sess; // 暂存每日任务，清单刷完后自动恢复
   S.session = {
@@ -509,6 +532,7 @@ function startListSession(mode, nums, emptyMsg) {
     mode: mode,
     queue: nums.slice(),
     pos: 0,
+    basePos: Number(basePos) || 0,
     requeue: [],
     cram: [],
     total: nums.length,
@@ -528,11 +552,56 @@ function startFavSession() {
   );
 }
 function startMbSession() {
-  startListSession(
-    "mb",
-    mbNums(),
-    "Mistake book is empty — tap ⚑ on a question to add it"
-  );
+  const emptyMsg = "Mistake book is empty — tap ⚑ on a question to add it";
+  const live = mbNums();
+
+  // 1) 今天还有没刷完的错题本会话：直接接着看，不重建清单
+  const sess = activeSession();
+  if (sess && sess.mode === "mb") {
+    // 会话还活着时也可能新加了题：追加到本轮末尾，不打断当前位置
+    const p = S.mbPass;
+    if (p && !p.done && Array.isArray(p.nums)) {
+      const known = new Set(p.nums);
+      const extra = live.filter((n) => !known.has(n));
+      if (extra.length) {
+        p.nums = p.nums.concat(extra);
+        sess.queue.push(...extra);
+        sess.total += extra.length;
+        persist();
+      }
+    }
+    show("quiz");
+    renderCurrent();
+    return;
+  }
+  syncMbPass(); // 会话可能是昨天的、或刚被每日任务顶替，先把进度收进 mbPass
+
+  // 2) 有没刷完的一轮：从断点（本轮剩余题）继续，可跨天、可跨设备
+  const pass = S.mbPass;
+  if (pass && !pass.done && Array.isArray(pass.nums)) {
+    const rest = pass.nums.slice(Number(pass.pos) || 0);
+    const known = new Set(pass.nums);
+    const extra = live.filter((n) => !known.has(n)); // 中途新加进错题本的题排到本轮末尾
+    const nums = rest.concat(extra);
+    if (extra.length) pass.nums = pass.nums.concat(extra);
+    if (nums.length) {
+      startListSession("mb", nums, emptyMsg, pass.pos);
+      toast(`Resuming mistake book · ${nums.length} card${nums.length === 1 ? "" : "s"} left`);
+      return;
+    }
+    pass.done = true; // 本轮剩余题都已移出错题本 → 下面重新开一轮
+  }
+
+  // 3) 全新一轮（上一轮已刷完 / 第一次使用）
+  if (!live.length) return toast(emptyMsg);
+  S.mbPass = {
+    nums: live.slice(),
+    pos: 0,
+    done: false,
+    date: todayKey(),
+    startedAt: Date.now(),
+  };
+  startListSession("mb", live, emptyMsg, 0);
 }
 
 /* ---------- 答题渲染 ---------- */
@@ -630,9 +699,17 @@ function renderCard() {
   $("#quiz-mode-label").innerHTML =
     `<span class="tag">${MODE_TAG[s.mode] || "Daily set"}</span>` +
     (cur.cram ? '<span class="tag" style="background:var(--gold);color:#5b3a00">Cram zone</span>' : "");
-  $("#quiz-count").textContent = `Done ${processed}/${s.total} · ${remaining} left`;
+  // 错题本续看时进度条显示「整轮」而不是「本次剩余」，避免每次进来都像从 0 开始
+  const pass = s.mode === "mb" && S.mbPass && Array.isArray(S.mbPass.nums) ? S.mbPass : null;
+  const passTotal = pass ? pass.nums.length : s.total;
+  const passDone = pass
+    ? Math.min(passTotal, (Number(s.basePos) || 0) + (Number(s.pos) || 0))
+    : processed;
+  $("#quiz-count").textContent = pass
+    ? `Pass ${passDone}/${passTotal} · ${remaining} left`
+    : `Done ${processed}/${s.total} · ${remaining} left`;
   $("#quiz-progress").style.width =
-    Math.min(100, (processed / Math.max(s.total, 1)) * 100).toFixed(1) + "%";
+    Math.min(100, (passDone / Math.max(passTotal, 1)) * 100).toFixed(1) + "%";
   $("#btn-fav-toggle").textContent = c.fav ? "★" : "☆";
   $("#btn-fav-toggle").classList.toggle("faved", !!c.fav);
   $("#btn-mb-toggle").textContent = c.mb ? "⚑" : "⚐";
@@ -920,6 +997,13 @@ function finishSession() {
   const s = S.session;
   const t = todayKey();
   const day = ensureDay();
+
+  // 错题本整轮（含重弹 / 攻坚区）刷完：把这一轮标记为完成，下一点开才从头开新一轮
+  if (s && s.mode === "mb" && S.mbPass) {
+    syncMbPass();
+    S.mbPass.pos = S.mbPass.nums.length;
+    S.mbPass.done = true;
+  }
 
   // 收尾：今日答错且最终未掌握的题 → 明天 00:05 置顶复习
   Object.keys(S.cards).forEach((n) => {

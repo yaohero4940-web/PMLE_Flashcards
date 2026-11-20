@@ -89,10 +89,18 @@
     if (!remote) return clone(local);
     const newer = num(remote.updatedAt) >= num(local.updatedAt) ? remote : local;
     const out = clone(newer);
+    const older = newer === remote ? local : remote;
     out.cards = mergeCards(local.cards, remote.cards);
     out.days = mergeDays(local.days, remote.days);
     out.session = newer.session ? clone(newer.session) : null;
     out.dailyBackup = newer.dailyBackup ? clone(newer.dailyBackup) : null;
+    // 错题本断点：跟随较新的一份；较新存档来自旧版本（没有该字段）时回退到另一份，
+    // 避免升级 / 换设备后「每次都从头开始」。同一轮清单时取较大的位置，防止旧设备把进度回退。
+    out.mbPass = clone(newer.mbPass || older.mbPass || null);
+    if (out.mbPass && local.mbPass && remote.mbPass &&
+        JSON.stringify(local.mbPass.nums) === JSON.stringify(remote.mbPass.nums)) {
+      out.mbPass.pos = Math.max(num(local.mbPass.pos), num(remote.mbPass.pos));
+    }
     out.streakLast = newer.streakLast || "";
     out.streakCount = num(newer.streakCount);
     out.corrVer = Math.max(num(local.corrVer), num(remote.corrVer));

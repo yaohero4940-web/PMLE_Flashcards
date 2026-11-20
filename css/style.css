@@ -232,6 +232,8 @@ main {
 .btn-big { font-size: 17px; padding: 14px 28px; }
 .btn-small { min-height: 38px; padding: 6px 14px; font-size: 13px; border-radius: 10px; }
 .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+/* 错题本有未完成的一轮：入口高亮为「续看」 */
+#btn-mb-run.resume { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(232, 176, 75, 0.22); }
 
 /* ---------- 收藏五角星（放大版） ---------- */
 .fav-star {
